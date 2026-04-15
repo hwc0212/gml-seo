@@ -38,7 +38,11 @@ class GML_SEO_Performance {
         add_filter( 'script_loader_tag', [ $this, 'defer_js' ], 10, 3 );
 
         // ── Image Optimization (output buffer) ───────────────────
-        add_action( 'template_redirect', [ $this, 'start_buffer' ], 1 );
+        // Priority 0: run BEFORE GML Translate (priority 1) so that
+        // translated HTML still gets image lazy-load / width-height fixes.
+        // Buffer nesting: GML Translate ob_start(1) → GML SEO ob_start(0)
+        // Flush order: GML SEO processes first, then GML Translate translates.
+        add_action( 'template_redirect', [ $this, 'start_buffer' ], 0 );
 
         // ── Resource Hints ───────────────────────────────────────
         add_action( 'wp_head', [ $this, 'resource_hints' ], 1 );

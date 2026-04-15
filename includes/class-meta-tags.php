@@ -62,6 +62,9 @@ class GML_SEO_Meta_Tags {
     public function render_head() {
         $id = is_singular() ? get_queried_object_id() : 0;
 
+        // Detect if we're on a GML Translate language-prefixed page
+        $is_translated_page = $this->is_gml_translate_page();
+
         // Meta description
         $desc = $id ? get_post_meta( $id, '_gml_seo_desc', true ) : '';
         if ( ! $desc && is_front_page() ) {
@@ -71,10 +74,12 @@ class GML_SEO_Meta_Tags {
             echo '<meta name="description" content="' . esc_attr( $desc ) . '">' . "\n";
         }
 
-        // Canonical
-        $canonical = $this->get_canonical();
-        if ( $canonical ) {
-            echo '<link rel="canonical" href="' . esc_url( $canonical ) . '">' . "\n";
+        // Canonical — skip if GML Translate is handling it (translated pages)
+        if ( ! $is_translated_page ) {
+            $canonical = $this->get_canonical();
+            if ( $canonical ) {
+                echo '<link rel="canonical" href="' . esc_url( $canonical ) . '">' . "\n";
+            }
         }
 
         // Robots
@@ -138,7 +143,11 @@ class GML_SEO_Meta_Tags {
     private function render_og( $id, $desc ) {
         $site = GML_SEO::opt( 'site_name', get_bloginfo( 'name' ) );
 
-        echo '<meta property="og:locale" content="' . esc_attr( get_locale() ) . '">' . "\n";
+        // Skip og:locale if GML Translate is handling it (it outputs the correct
+        // locale for translated pages + og:locale:alternate for other languages)
+        if ( ! $this->is_gml_translate_page() ) {
+            echo '<meta property="og:locale" content="' . esc_attr( get_locale() ) . '">' . "\n";
+        }
         echo '<meta property="og:site_name" content="' . esc_attr( $site ) . '">' . "\n";
 
         if ( is_singular() && $id ) {
@@ -199,4 +208,28 @@ class GML_SEO_Meta_Tags {
 
     private function sep() { return GML_SEO::opt( 'separator', '-' ); }
     private function site() { return GML_SEO::opt( 'site_name', get_bloginfo( 'name' ) ); }
+
+    /**
+     * Check if current page is a GML Translate language-prefixed page.
+     * GML Translate handles canonical, og:locale, and hreflang on these pages.
+     */
+    private function is_gml_translate_page() {
+        if ( ! defined( 'GML_VERSION' ) ) return false;
+
+        $uri  = $_SERVER['REQUEST_URI'] ?? '';
+        $path = strtok( $uri, '?' );
+        if ( preg_match( '#^/([a-z]{2})(/|$)#', $path, $m ) ) {
+            $lang   = $m[1];
+            $source = get_option( 'gml_source_lang', 'en' );
+            if ( $lang !== $source ) {
+                $langs = get_option( 'gml_languages', [] );
+                foreach ( $langs as $l ) {
+                    if ( ( $l['enabled'] ?? true ) && $l['code'] === $lang ) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

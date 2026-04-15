@@ -211,6 +211,11 @@ class GML_SEO_Sitemap {
         $txt .= "# Sitemap\n";
         $txt .= "Sitemap: " . home_url( '/sitemap.xml' ) . "\n";
 
+        // GML Translate multilingual sitemap (if active and has its own sitemap)
+        if ( defined( 'GML_VERSION' ) && class_exists( 'GML_Sitemap' ) ) {
+            $txt .= "Sitemap: " . home_url( '/gml-sitemap.xml' ) . "\n";
+        }
+
         return $txt;
     }
 
