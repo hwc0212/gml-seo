@@ -14,6 +14,13 @@ All notable changes to GML AI SEO will be documented in this file.
   - API Key 独立存储，切换引擎不丢失配置
   - 所有 AI 功能（SEO 分析、批量优化、编辑器面板）均支持 DeepSeek
 
+### Fixed
+- 🐛 **sitemap.xml 被 WordPress 核心重定向到 wp-sitemap.xml** — WordPress 5.5+ 内置的 WP_Sitemaps 在 `init` priority 0 注册了 `/sitemap.xml` → `/wp-sitemap.xml` 的重定向，GML SEO 的 rewrite rule 注册太晚被核心抢先
+  - 修复（三层防护）：
+    1. 插件构造函数（最早时机）注册 `wp_sitemaps_enabled = false`
+    2. `remove_action` 移除 `WP_Sitemaps::init`，阻止核心注册 rewrite rules
+    3. `render()` 新增 URL 直接检测 fallback，即使 rewrite rule 没生效也能通过解析 REQUEST_URI 响应 sitemap 请求
+
 ---
 
 ## [1.1.0] - 2026-04-15
