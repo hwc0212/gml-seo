@@ -71,12 +71,14 @@ final class GML_SEO {
     }
 
     public function boot() {
-        // Auto-flush rewrite rules on version upgrade
+        // Auto-flush rewrite rules on version upgrade (must run on init, not plugins_loaded)
         $stored = get_option( 'gml_seo_version', '' );
         if ( $stored !== GML_SEO_VER ) {
-            GML_SEO_Sitemap::add_rules();
-            flush_rewrite_rules();
-            update_option( 'gml_seo_version', GML_SEO_VER );
+            add_action( 'init', function() {
+                GML_SEO_Sitemap::add_rules();
+                flush_rewrite_rules();
+                update_option( 'gml_seo_version', GML_SEO_VER );
+            }, 99 );
         }
 
         new GML_SEO_Admin();
