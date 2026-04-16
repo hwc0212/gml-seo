@@ -22,16 +22,20 @@ class GML_SEO_Admin {
 
     public function sanitize( $in ) {
         $o = [];
-        $o['gemini_key']  = sanitize_text_field( $in['gemini_key'] ?? '' );
-        $o['model']       = sanitize_text_field( $in['model'] ?? 'gemini-2.5-flash' );
-        $o['ga_id']       = sanitize_text_field( $in['ga_id'] ?? '' );
-        $o['gtm_id']      = sanitize_text_field( $in['gtm_id'] ?? '' );
-        $o['adsense_id']  = sanitize_text_field( $in['adsense_id'] ?? '' );
-        $o['head_code']   = $in['head_code'] ?? '';   // Allow raw HTML
-        $o['body_code']   = $in['body_code'] ?? '';
-        $o['footer_code'] = $in['footer_code'] ?? '';
-        $o['site_name']   = sanitize_text_field( $in['site_name'] ?? get_bloginfo( 'name' ) );
-        $o['separator']   = sanitize_text_field( $in['separator'] ?? '-' );
+        $o['engine']          = in_array( $in['engine'] ?? '', [ 'gemini', 'deepseek' ] ) ? $in['engine'] : 'gemini';
+        $o['gemini_key']      = sanitize_text_field( $in['gemini_key'] ?? '' );
+        $o['model']           = sanitize_text_field( $in['model'] ?? 'gemini-2.5-flash' );
+        $o['deepseek_key']    = sanitize_text_field( $in['deepseek_key'] ?? '' );
+        $o['deepseek_model']  = sanitize_text_field( $in['deepseek_model'] ?? 'deepseek-chat' );
+        $o['deepseek_base_url'] = esc_url_raw( $in['deepseek_base_url'] ?? 'https://api.deepseek.com' );
+        $o['ga_id']           = sanitize_text_field( $in['ga_id'] ?? '' );
+        $o['gtm_id']          = sanitize_text_field( $in['gtm_id'] ?? '' );
+        $o['adsense_id']      = sanitize_text_field( $in['adsense_id'] ?? '' );
+        $o['head_code']       = $in['head_code'] ?? '';
+        $o['body_code']       = $in['body_code'] ?? '';
+        $o['footer_code']     = $in['footer_code'] ?? '';
+        $o['site_name']       = sanitize_text_field( $in['site_name'] ?? get_bloginfo( 'name' ) );
+        $o['separator']       = sanitize_text_field( $in['separator'] ?? '-' );
         return $o;
     }
 
@@ -66,23 +70,58 @@ class GML_SEO_Admin {
     // ── Settings Tab ─────────────────────────────────────────────────
 
     private function tab_settings( $s ) {
+        $engine = $s['engine'] ?? 'gemini';
         ?>
         <form method="post" action="options.php">
             <?php settings_fields( 'gml_seo_group' ); ?>
             <table class="form-table">
                 <tr>
+                    <th>AI 引擎</th>
+                    <td>
+                        <select name="gml_seo[engine]" id="gml-seo-engine">
+                            <option value="gemini" <?php selected( $engine, 'gemini' ); ?>>Google Gemini（海外推荐）</option>
+                            <option value="deepseek" <?php selected( $engine, 'deepseek' ); ?>>DeepSeek（中国大陆推荐）</option>
+                        </select>
+                        <p class="description">中国大陆无法访问 Google API，请选择 DeepSeek。</p>
+                    </td>
+                </tr>
+
+                <!-- Gemini fields -->
+                <tr class="gml-seo-engine-gemini" <?php echo $engine !== 'gemini' ? 'style="display:none;"' : ''; ?>>
                     <th>Gemini API Key</th>
                     <td><input type="password" name="gml_seo[gemini_key]" value="<?php echo esc_attr( $s['gemini_key'] ?? '' ); ?>" class="regular-text" autocomplete="off">
-                    <p class="description">从 <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> 获取。填入后 AI 会自动为每篇文章生成最优 SEO 标题和描述。</p></td>
+                    <p class="description">从 <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> 获取。</p></td>
                 </tr>
-                <tr>
-                    <th>AI Model</th>
+                <tr class="gml-seo-engine-gemini" <?php echo $engine !== 'gemini' ? 'style="display:none;"' : ''; ?>>
+                    <th>Gemini Model</th>
                     <td><select name="gml_seo[model]">
                         <?php foreach ( [ 'gemini-2.5-flash' => 'Gemini 2.5 Flash (推荐)', 'gemini-2.5-pro' => 'Gemini 2.5 Pro (最佳质量)', 'gemini-2.0-flash' => 'Gemini 2.0 Flash' ] as $v => $l ) : ?>
                             <option value="<?php echo $v; ?>" <?php selected( $s['model'] ?? '', $v ); ?>><?php echo $l; ?></option>
                         <?php endforeach; ?>
                     </select></td>
                 </tr>
+
+                <!-- DeepSeek fields -->
+                <tr class="gml-seo-engine-deepseek" <?php echo $engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
+                    <th>DeepSeek API Key</th>
+                    <td><input type="password" name="gml_seo[deepseek_key]" value="<?php echo esc_attr( $s['deepseek_key'] ?? '' ); ?>" class="regular-text" autocomplete="off">
+                    <p class="description">从 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 开放平台</a> 获取。</p></td>
+                </tr>
+                <tr class="gml-seo-engine-deepseek" <?php echo $engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
+                    <th>DeepSeek Model</th>
+                    <td><select name="gml_seo[deepseek_model]">
+                        <?php foreach ( [ 'deepseek-chat' => 'DeepSeek Chat (推荐)', 'deepseek-reasoner' => 'DeepSeek Reasoner (深度推理)' ] as $v => $l ) : ?>
+                            <option value="<?php echo $v; ?>" <?php selected( $s['deepseek_model'] ?? '', $v ); ?>><?php echo $l; ?></option>
+                        <?php endforeach; ?>
+                    </select></td>
+                </tr>
+                <tr class="gml-seo-engine-deepseek" <?php echo $engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
+                    <th>DeepSeek API Base URL</th>
+                    <td><input type="url" name="gml_seo[deepseek_base_url]" value="<?php echo esc_attr( $s['deepseek_base_url'] ?? 'https://api.deepseek.com' ); ?>" class="regular-text">
+                    <p class="description">默认 https://api.deepseek.com，如使用代理可修改。</p></td>
+                </tr>
+
+                <!-- Common fields -->
                 <tr>
                     <th>Site Name</th>
                     <td><input type="text" name="gml_seo[site_name]" value="<?php echo esc_attr( $s['site_name'] ?? '' ); ?>" class="regular-text">
@@ -111,6 +150,13 @@ class GML_SEO_Admin {
             </table>
             <?php submit_button( '保存设置' ); ?>
         </form>
+        <script>
+        document.getElementById('gml-seo-engine').addEventListener('change', function(){
+            var v = this.value;
+            document.querySelectorAll('.gml-seo-engine-gemini').forEach(function(el){ el.style.display = v === 'gemini' ? '' : 'none'; });
+            document.querySelectorAll('.gml-seo-engine-deepseek').forEach(function(el){ el.style.display = v === 'deepseek' ? '' : 'none'; });
+        });
+        </script>
         <?php
     }
 
@@ -183,8 +229,12 @@ class GML_SEO_Admin {
         <form method="post" action="options.php">
             <?php settings_fields( 'gml_seo_group' ); ?>
             <?php // Hidden fields to preserve other settings ?>
+            <input type="hidden" name="gml_seo[engine]" value="<?php echo esc_attr( $s['engine'] ?? 'gemini' ); ?>">
             <input type="hidden" name="gml_seo[gemini_key]" value="<?php echo esc_attr( $s['gemini_key'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[model]" value="<?php echo esc_attr( $s['model'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[deepseek_key]" value="<?php echo esc_attr( $s['deepseek_key'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[deepseek_model]" value="<?php echo esc_attr( $s['deepseek_model'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[deepseek_base_url]" value="<?php echo esc_attr( $s['deepseek_base_url'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[ga_id]" value="<?php echo esc_attr( $s['ga_id'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[gtm_id]" value="<?php echo esc_attr( $s['gtm_id'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[adsense_id]" value="<?php echo esc_attr( $s['adsense_id'] ?? '' ); ?>">
@@ -218,8 +268,8 @@ class GML_SEO_Admin {
     // ── Bulk Optimize Tab ────────────────────────────────────────────
 
     private function tab_bulk() {
-        if ( ! GML_SEO::opt( 'gemini_key' ) ) {
-            echo '<div class="notice notice-warning"><p>⚠️ 请先在 Settings 标签页配置 Gemini API Key。</p></div>';
+        if ( ! GML_SEO::has_ai_key() ) {
+            echo '<div class="notice notice-warning"><p>⚠️ 请先在 Settings 标签页配置 AI API Key（Gemini 或 DeepSeek）。</p></div>';
             return;
         }
 

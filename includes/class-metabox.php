@@ -29,7 +29,7 @@ class GML_SEO_Metabox {
     }
 
     public function render( $post ) {
-        $has_key = ! empty( GML_SEO::opt( 'gemini_key' ) );
+        $has_key = GML_SEO::has_ai_key();
         $report  = get_post_meta( $post->ID, '_gml_seo_report', true );
         $meta    = [
             'title'     => get_post_meta( $post->ID, '_gml_seo_title', true ),
@@ -43,7 +43,7 @@ class GML_SEO_Metabox {
         ?>
         <div id="gml-seo-box-inner" data-post-id="<?php echo $post->ID; ?>">
         <?php if ( ! $has_key ) : ?>
-            <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 Gemini API Key</a>，AI 才能自动优化 SEO。</p>
+            <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 AI API Key</a>（Gemini 或 DeepSeek），AI 才能自动优化 SEO。</p>
         <?php else : ?>
             <div class="gml-seo-toolbar">
                 <button type="button" id="gml-seo-gen-btn" class="button button-primary">

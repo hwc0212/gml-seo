@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: Zero-config AI-powered SEO & Performance. Gemini auto-optimizes titles, descriptions, schema, sitemaps, and page speed. Just install, add your API key, done.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.1.0' );
+define( 'GML_SEO_VER', '1.2.0' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -45,16 +45,20 @@ final class GML_SEO {
     public function activate() {
         if ( ! get_option( 'gml_seo' ) ) {
             update_option( 'gml_seo', [
-                'gemini_key'  => '',
-                'model'       => 'gemini-2.5-flash',
-                'ga_id'       => '',          // G-XXXXXXX
-                'gtm_id'      => '',          // GTM-XXXXXXX
-                'adsense_id'  => '',          // ca-pub-XXXXXXX
-                'head_code'   => '',          // custom <head> code
-                'body_code'   => '',          // after <body>
-                'footer_code' => '',          // before </body>
-                'site_name'   => get_bloginfo( 'name' ),
-                'separator'   => '-',
+                'engine'          => 'gemini',
+                'gemini_key'      => '',
+                'model'           => 'gemini-2.5-flash',
+                'deepseek_key'    => '',
+                'deepseek_model'  => 'deepseek-chat',
+                'deepseek_base_url' => 'https://api.deepseek.com',
+                'ga_id'           => '',
+                'gtm_id'          => '',
+                'adsense_id'      => '',
+                'head_code'       => '',
+                'body_code'       => '',
+                'footer_code'     => '',
+                'site_name'       => get_bloginfo( 'name' ),
+                'separator'       => '-',
             ] );
         }
         // Sitemap rewrite rules
@@ -78,9 +82,18 @@ final class GML_SEO {
         }
 
         // AI engine — runs on save_post to auto-generate SEO data
-        if ( self::opt( 'gemini_key' ) ) {
+        if ( self::has_ai_key() ) {
             new GML_SEO_AI_Engine();
         }
+    }
+
+    /** Check if an AI API key is configured for the selected engine. */
+    public static function has_ai_key() {
+        $engine = self::opt( 'engine', 'gemini' );
+        if ( $engine === 'deepseek' ) {
+            return ! empty( self::opt( 'deepseek_key' ) );
+        }
+        return ! empty( self::opt( 'gemini_key' ) );
     }
 
     /** Get a plugin option. */

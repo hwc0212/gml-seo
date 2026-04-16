@@ -2,6 +2,20 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.2.0] - 2026-04-16
+
+### Added
+- 🤖 **DeepSeek 翻译引擎支持** — 中国大陆无法访问 Google API，新增 DeepSeek 作为可选 AI 引擎：
+  - Settings 页面新增「AI 引擎」下拉选择器（Google Gemini / DeepSeek）
+  - 切换引擎时自动显示/隐藏对应的配置字段
+  - DeepSeek 使用 OpenAI 兼容的 Chat Completions API 格式
+  - 支持自定义 DeepSeek 模型（deepseek-chat / deepseek-reasoner）
+  - 支持自定义 API Base URL（适用于代理/私有部署）
+  - API Key 独立存储，切换引擎不丢失配置
+  - 所有 AI 功能（SEO 分析、批量优化、编辑器面板）均支持 DeepSeek
+
+---
+
 ## [1.1.0] - 2026-04-15
 
 ### Added
