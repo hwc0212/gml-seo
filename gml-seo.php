@@ -28,6 +28,8 @@ final class GML_SEO {
     }
 
     private function __construct() {
+        // Disable WP core sitemap as early as possible (before WP_Sitemaps::init on 'init' priority 0)
+        add_filter( 'wp_sitemaps_enabled', '__return_false' );
         require_once GML_SEO_DIR . 'includes/class-gemini-api.php';
         require_once GML_SEO_DIR . 'includes/class-admin.php';
         require_once GML_SEO_DIR . 'includes/class-meta-tags.php';

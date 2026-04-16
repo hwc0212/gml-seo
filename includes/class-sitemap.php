@@ -13,15 +13,36 @@ class GML_SEO_Sitemap {
     const PER_PAGE = 1000;
 
     public function __construct() {
-        add_action( 'init', [ __CLASS__, 'add_rules' ] );
-        add_filter( 'query_vars', [ $this, 'query_vars' ] );
-        add_action( 'template_redirect', [ $this, 'render' ], 1 );
-
-        // Disable WP core sitemap
+        // Disable WP core sitemap FIRST — must run before WP_Sitemaps::init()
+        // which fires on 'init' priority 0. We use a filter that's checked
+        // every time the core sitemap tries to do anything.
         add_filter( 'wp_sitemaps_enabled', '__return_false' );
+
+        // Remove core sitemap rewrite rules and redirect
+        remove_action( 'init', [ 'WP_Sitemaps', 'init' ], 0 );
+
+        add_action( 'init', [ __CLASS__, 'add_rules' ], 1 );
+        add_filter( 'query_vars', [ $this, 'query_vars' ] );
+        add_action( 'template_redirect', [ $this, 'render' ], 0 );
+
+        // Intercept core sitemap redirect: /sitemap.xml → /wp-sitemap.xml
+        add_action( 'template_redirect', [ $this, 'block_core_redirect' ], -1 );
 
         // Add sitemap to robots.txt
         add_filter( 'robots_txt', [ $this, 'robots_txt' ], 10, 2 );
+    }
+
+    /**
+     * Block WordPress core from redirecting /sitemap.xml to /wp-sitemap.xml.
+     * This runs at the earliest priority to catch the redirect before it happens.
+     */
+    public function block_core_redirect() {
+        // If the request is for sitemap.xml, prevent any redirect
+        $path = trim( parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH ), '/' );
+        if ( $path === 'sitemap.xml' || preg_match( '/^sitemap-[a-z_]+-?\d*\.xml$/', $path ) ) {
+            // Remove any redirect filters that core sitemap might have added
+            remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+        }
     }
 
     public static function add_rules() {
@@ -37,6 +58,18 @@ class GML_SEO_Sitemap {
 
     public function render() {
         $type = get_query_var( 'gml_sitemap' );
+
+        // Fallback: if rewrite rules didn't fire, detect from URL directly
+        if ( ! $type ) {
+            $path = trim( parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH ), '/' );
+            if ( $path === 'sitemap.xml' ) {
+                $type = 'index';
+            } elseif ( preg_match( '/^sitemap-([a-z_]+)-?(\d*)\.xml$/', $path, $m ) ) {
+                $type = $m[1];
+                set_query_var( 'gml_sitemap_page', $m[2] ?: '1' );
+            }
+        }
+
         if ( ! $type ) return;
 
         $page = max( 1, (int) get_query_var( 'gml_sitemap_page', 1 ) );
