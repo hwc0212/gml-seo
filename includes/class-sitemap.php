@@ -74,6 +74,16 @@ class GML_SEO_Sitemap {
 
         $page = max( 1, (int) get_query_var( 'gml_sitemap_page', 1 ) );
 
+        // Reset 404 status — WordPress may have set it if rewrite rules
+        // didn't match and it tried to find a page with this slug.
+        global $wp_query;
+        if ( $wp_query ) {
+            $wp_query->is_404  = false;
+            $wp_query->is_feed = false;
+            status_header( 200 );
+            nocache_headers();
+        }
+
         header( 'Content-Type: application/xml; charset=UTF-8' );
         header( 'X-Robots-Tag: noindex' );
 
@@ -244,10 +254,9 @@ class GML_SEO_Sitemap {
         $txt .= "# Sitemap\n";
         $txt .= "Sitemap: " . home_url( '/sitemap.xml' ) . "\n";
 
-        // GML Translate multilingual sitemap (if active and has its own sitemap)
-        if ( defined( 'GML_VERSION' ) && class_exists( 'GML_Sitemap' ) ) {
-            $txt .= "Sitemap: " . home_url( '/gml-sitemap.xml' ) . "\n";
-        }
+        // NOTE: GML Translate's gml-sitemap.xml is handled by GML Translate
+        // itself via its own robots_txt filter. We do NOT output it here to
+        // avoid duplicate Sitemap lines.
 
         return $txt;
     }

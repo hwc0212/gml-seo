@@ -23,7 +23,6 @@ class GML_SEO_AI_Engine {
         add_action( 'save_post', [ $this, 'on_save' ], 99, 2 );
         add_action( 'gml_seo_generate_cron', [ $this, 'generate_for_post' ] );
         add_action( 'wp_ajax_gml_seo_generate', [ $this, 'ajax_generate' ] );
-        add_action( 'wp_ajax_gml_seo_apply', [ $this, 'ajax_apply' ] );
         add_action( 'wp_ajax_gml_seo_bulk', [ $this, 'ajax_bulk' ] );
     }
 
@@ -396,23 +395,6 @@ PROMPT;
             'meta'   => $this->get_meta_for_js( $pid ),
             'report' => $result,
         ] );
-    }
-
-    // ── AJAX: save single field edit ─────────────────────────────────
-
-    public function ajax_apply() {
-        check_ajax_referer( 'gml_seo_nonce' );
-        $pid = absint( $_POST['post_id'] ?? 0 );
-        $key = sanitize_text_field( $_POST['meta_key'] ?? '' );
-        $val = sanitize_text_field( $_POST['meta_value'] ?? '' );
-
-        if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) wp_send_json_error( 'Unauthorized' );
-
-        $allowed = [ '_gml_seo_title', '_gml_seo_desc', '_gml_seo_og_title', '_gml_seo_og_desc', '_gml_seo_keywords' ];
-        if ( ! in_array( $key, $allowed, true ) ) wp_send_json_error( 'Invalid key' );
-
-        update_post_meta( $pid, $key, $val );
-        wp_send_json_success();
     }
 
     // ── AJAX: bulk ───────────────────────────────────────────────────

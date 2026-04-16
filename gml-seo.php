@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: Zero-config AI-powered SEO & Performance. Gemini auto-optimizes titles, descriptions, schema, sitemaps, and page speed. Just install, add your API key, done.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.2.0' );
+define( 'GML_SEO_VER', '1.3.0' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -66,9 +66,19 @@ final class GML_SEO {
         // Sitemap rewrite rules
         GML_SEO_Sitemap::add_rules();
         flush_rewrite_rules();
+        // Store version for upgrade detection
+        update_option( 'gml_seo_version', GML_SEO_VER );
     }
 
     public function boot() {
+        // Auto-flush rewrite rules on version upgrade
+        $stored = get_option( 'gml_seo_version', '' );
+        if ( $stored !== GML_SEO_VER ) {
+            GML_SEO_Sitemap::add_rules();
+            flush_rewrite_rules();
+            update_option( 'gml_seo_version', GML_SEO_VER );
+        }
+
         new GML_SEO_Admin();
         new GML_SEO_Code_Injection();
 
@@ -83,10 +93,29 @@ final class GML_SEO {
             new GML_SEO_Metabox();
         }
 
+        // Register AJAX handler for manual meta saves (always available)
+        add_action( 'wp_ajax_gml_seo_apply', [ $this, 'ajax_apply_meta' ] );
+
         // AI engine — runs on save_post to auto-generate SEO data
         if ( self::has_ai_key() ) {
             new GML_SEO_AI_Engine();
         }
+    }
+
+    /** AJAX: save a single SEO meta field (works without AI key). */
+    public function ajax_apply_meta() {
+        check_ajax_referer( 'gml_seo_nonce' );
+        $pid = absint( $_POST['post_id'] ?? 0 );
+        $key = sanitize_text_field( $_POST['meta_key'] ?? '' );
+        $val = sanitize_text_field( $_POST['meta_value'] ?? '' );
+
+        if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) wp_send_json_error( 'Unauthorized' );
+
+        $allowed = [ '_gml_seo_title', '_gml_seo_desc', '_gml_seo_og_title', '_gml_seo_og_desc', '_gml_seo_keywords' ];
+        if ( ! in_array( $key, $allowed, true ) ) wp_send_json_error( 'Invalid key' );
+
+        update_post_meta( $pid, $key, $val );
+        wp_send_json_success();
     }
 
     /** Check if an AI API key is configured for the selected engine. */

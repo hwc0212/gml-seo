@@ -44,7 +44,9 @@ class GML_SEO_Metabox {
         <div id="gml-seo-box-inner" data-post-id="<?php echo $post->ID; ?>">
         <?php if ( ! $has_key ) : ?>
             <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 AI API Key</a>（Gemini 或 DeepSeek），AI 才能自动优化 SEO。</p>
-        <?php else : ?>
+        <?php endif; ?>
+
+            <?php if ( $has_key ) : ?>
             <div class="gml-seo-toolbar">
                 <button type="button" id="gml-seo-gen-btn" class="button button-primary">
                     🤖 <?php echo $report ? 'AI 重新分析' : 'AI 一键优化'; ?>
@@ -58,11 +60,49 @@ class GML_SEO_Metabox {
                 <span class="spinner is-active" style="float:none;margin:0 8px 0 0;"></span>
                 AI SEO 大师正在深度分析页面：关键词策略、标题优化、内容审计、技术 SEO...
             </div>
+            <?php endif; ?>
+
+            <!-- ── Always-visible editable SEO fields ── -->
+            <div id="gml-seo-fields" class="gml-seo-fields-grid">
+                <?php
+                $fields = [
+                    [ '_gml_seo_title',   'SEO 标题',  $meta['title'],    60,  'text' ],
+                    [ '_gml_seo_desc',    'Meta 描述', $meta['desc'],     160, 'textarea' ],
+                    [ '_gml_seo_keywords','关键词',     $meta['keywords'], 0,   'text' ],
+                    [ '_gml_seo_og_title','OG 标题',   $meta['og_title'], 70,  'text' ],
+                    [ '_gml_seo_og_desc', 'OG 描述',   $meta['og_desc'],  160, 'textarea' ],
+                ];
+                foreach ( $fields as $f ) : ?>
+                <div class="gml-seo-field" data-key="<?php echo $f[0]; ?>">
+                    <label><?php echo $f[1]; ?>
+                        <?php if ( $f[3] ) : ?>
+                        <span class="gml-seo-counter" data-max="<?php echo $f[3]; ?>"><span class="gml-seo-count"><?php echo mb_strlen( $f[2] ); ?></span>/<?php echo $f[3]; ?></span>
+                        <?php endif; ?>
+                    </label>
+                    <?php if ( $f[4] === 'textarea' ) : ?>
+                        <textarea name="<?php echo $f[0]; ?>" rows="2" class="large-text gml-seo-input"><?php echo esc_textarea( $f[2] ); ?></textarea>
+                    <?php else : ?>
+                        <input type="text" name="<?php echo $f[0]; ?>" value="<?php echo esc_attr( $f[2] ); ?>" class="large-text gml-seo-input">
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+                <div class="gml-seo-toolbar">
+                    <button type="button" id="gml-seo-save-btn" class="button">💾 保存修改</button>
+                    <span id="gml-seo-save-msg" style="color:#00a32a;display:none;">✓ 已保存</span>
+                </div>
+            </div>
+
+            <!-- ── Google Preview ── -->
+            <div class="gml-seo-preview-box">
+                <div class="gml-seo-preview-label">Google 搜索预览</div>
+                <div id="gml-seo-preview-title" class="gml-seo-preview-t"><?php echo esc_html( $meta['title'] ?: $post->post_title ); ?></div>
+                <div class="gml-seo-preview-u"><?php echo esc_html( get_permalink( $post->ID ) ); ?></div>
+                <div id="gml-seo-preview-desc" class="gml-seo-preview-d"><?php echo esc_html( $meta['desc'] ); ?></div>
+            </div>
 
             <div id="gml-seo-report">
             <?php if ( $report ) $this->render_report( $post, $meta, $report ); ?>
             </div>
-        <?php endif; ?>
         </div>
         <?php
     }
@@ -97,44 +137,6 @@ class GML_SEO_Metabox {
                 </div>
                 <?php endif; ?>
             </div>
-        </div>
-
-        <!-- ── Editable SEO Fields ── -->
-        <div id="gml-seo-fields" class="gml-seo-fields-grid">
-            <?php
-            $fields = [
-                [ '_gml_seo_title',   'SEO 标题',  $meta['title'],    60,  'text' ],
-                [ '_gml_seo_desc',    'Meta 描述', $meta['desc'],     160, 'textarea' ],
-                [ '_gml_seo_keywords','关键词',     $meta['keywords'], 0,   'text' ],
-                [ '_gml_seo_og_title','OG 标题',   $meta['og_title'], 70,  'text' ],
-                [ '_gml_seo_og_desc', 'OG 描述',   $meta['og_desc'],  160, 'textarea' ],
-            ];
-            foreach ( $fields as $f ) : ?>
-            <div class="gml-seo-field" data-key="<?php echo $f[0]; ?>">
-                <label><?php echo $f[1]; ?>
-                    <?php if ( $f[3] ) : ?>
-                    <span class="gml-seo-counter" data-max="<?php echo $f[3]; ?>"><span class="gml-seo-count"><?php echo mb_strlen( $f[2] ); ?></span>/<?php echo $f[3]; ?></span>
-                    <?php endif; ?>
-                </label>
-                <?php if ( $f[4] === 'textarea' ) : ?>
-                    <textarea name="<?php echo $f[0]; ?>" rows="2" class="large-text gml-seo-input"><?php echo esc_textarea( $f[2] ); ?></textarea>
-                <?php else : ?>
-                    <input type="text" name="<?php echo $f[0]; ?>" value="<?php echo esc_attr( $f[2] ); ?>" class="large-text gml-seo-input">
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-            <div class="gml-seo-toolbar">
-                <button type="button" id="gml-seo-save-btn" class="button">💾 保存修改</button>
-                <span id="gml-seo-save-msg" style="color:#00a32a;display:none;">✓ 已保存</span>
-            </div>
-        </div>
-
-        <!-- ── Google Preview ── -->
-        <div class="gml-seo-preview-box">
-            <div class="gml-seo-preview-label">Google 搜索预览</div>
-            <div id="gml-seo-preview-title" class="gml-seo-preview-t"><?php echo esc_html( $meta['title'] ?: $post->post_title ); ?></div>
-            <div class="gml-seo-preview-u"><?php echo esc_html( get_permalink( $post->ID ) ); ?></div>
-            <div id="gml-seo-preview-desc" class="gml-seo-preview-d"><?php echo esc_html( $meta['desc'] ); ?></div>
         </div>
 
         <!-- ── SEO Audit Issues ── -->

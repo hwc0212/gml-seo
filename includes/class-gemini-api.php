@@ -44,22 +44,35 @@ class GML_SEO_AI_Client {
     }
 
     /**
-     * Call and parse JSON response.
+     * Call and parse JSON response. Retries once on parse failure.
      */
     public function call_json( $prompt, $system = '', $max_tokens = 2048 ) {
-        $text = $this->call( $prompt, $system, $max_tokens );
-        if ( is_wp_error( $text ) ) return $text;
+        $attempts = 2; // 1 initial + 1 retry
+        $last_error = null;
 
-        $text = trim( $text );
-        $text = preg_replace( '/^```(?:json)?\s*/i', '', $text );
-        $text = preg_replace( '/\s*```$/', '', $text );
-        $out  = json_decode( $text, true );
+        for ( $i = 0; $i < $attempts; $i++ ) {
+            $text = $this->call( $prompt, $system, $max_tokens );
+            if ( is_wp_error( $text ) ) return $text;
 
-        if ( ! is_array( $out ) ) {
+            $text = trim( $text );
+            $text = preg_replace( '/^```(?:json)?\s*/i', '', $text );
+            $text = preg_replace( '/\s*```$/', '', $text );
+            $out  = json_decode( $text, true );
+
+            if ( is_array( $out ) ) {
+                return $out;
+            }
+
             $label = $this->engine === 'deepseek' ? 'DeepSeek' : 'Gemini';
-            return new WP_Error( 'parse', "Invalid JSON from {$label}.", [ 'raw' => mb_substr( $text, 0, 500 ) ] );
+            $last_error = new WP_Error( 'parse', "Invalid JSON from {$label}.", [ 'raw' => mb_substr( $text, 0, 500 ) ] );
+
+            // Log retry attempt
+            if ( $i < $attempts - 1 ) {
+                error_log( "GML SEO: Invalid JSON from {$label}, retrying (attempt " . ( $i + 2 ) . ")..." );
+            }
         }
-        return $out;
+
+        return $last_error;
     }
 
     // ── Gemini ───────────────────────────────────────────────────────

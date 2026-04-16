@@ -2,6 +2,18 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.3.0] - 2026-04-16
+
+### Fixed
+- 🐛 **子 sitemap 404** — `sitemap-post.xml`、`sitemap-page.xml` 等子 sitemap 返回 404。原因是插件更新后 rewrite rules 未自动刷新。修复：新增版本升级自动检测，升级时自动 `flush_rewrite_rules()`；`render()` 中增加 `nocache_headers()` 确保 404 状态完全重置
+- 🐛 **robots.txt 中 gml-sitemap.xml 重复** — GML SEO 的 `robots_txt()` 输出了 GML Translate 的 `gml-sitemap.xml`，GML Translate 自身又追加一次导致重复。修复：GML SEO 不再输出 `gml-sitemap.xml`，由 GML Translate 自行管理其 sitemap 声明
+- 🐛 **批量优化 "Invalid JSON" 失败无重试** — AI 返回非法 JSON 时直接标记失败。修复：`call_json()` 新增自动重试 1 次机制，解析失败后重新调用 API
+- 🐛 **Dashboard AI 标题列文字遮挡** — AI 标题列无宽度限制导致文字溢出。修复：添加 `max-width: 280px` + `text-overflow: ellipsis`，hover 显示完整标题
+- 🐛 **编辑器 metabox 缺少手动编辑入口** — SEO 字段仅在 AI 生成报告后才显示，用户无法手动填写。修复：SEO 标题/描述/关键词/OG 字段始终显示为可编辑状态，无需依赖 AI；保存功能独立于 AI Key 配置
+
+### Changed
+- 版本号升级至 1.3.0
+
 ## [1.2.0] - 2026-04-16
 
 ### Added

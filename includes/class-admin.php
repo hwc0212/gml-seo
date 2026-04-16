@@ -361,7 +361,7 @@ class GML_SEO_Admin {
 
         <?php if ( $recent ) : ?>
         <table class="wp-list-table widefat fixed striped">
-            <thead><tr><th>页面</th><th style="width:100px;">类型</th><th>AI 标题</th><th style="width:160px;">优化时间</th><th style="width:80px;">操作</th></tr></thead>
+            <thead><tr><th>页面</th><th style="width:100px;">类型</th><th style="width:280px;">AI 标题</th><th style="width:160px;">优化时间</th><th style="width:80px;">操作</th></tr></thead>
             <tbody>
             <?php foreach ( $recent as $r ) :
                 $title = get_post_meta( $r->ID, '_gml_seo_title', true );
@@ -369,7 +369,7 @@ class GML_SEO_Admin {
             <tr>
                 <td><?php echo esc_html( $r->post_title ); ?></td>
                 <td><?php echo $r->post_type; ?></td>
-                <td style="color:#2271b1;font-size:12px;"><?php echo esc_html( $title ); ?></td>
+                <td style="color:#2271b1;font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo esc_attr( $title ); ?>"><?php echo esc_html( $title ); ?></td>
                 <td><?php echo esc_html( $r->gen_time ); ?></td>
                 <td><a href="<?php echo get_edit_post_link( $r->ID ); ?>" class="button button-small">编辑</a></td>
             </tr>
