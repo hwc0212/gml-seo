@@ -85,4 +85,16 @@
         else if (len > 0) $(this).addClass('ok');
     });
 
+    // ── FAQ / Auto-link toggle ──────────────────────────────────────
+    $(document).on('change', '#gml-seo-faq-hide, #gml-seo-auto-links-hide', function(){
+        var key = this.id === 'gml-seo-faq-hide' ? '_gml_seo_faq_hide' : '_gml_seo_auto_links_hide';
+        $.post(gmlSeo.ajax, {
+            action: 'gml_seo_toggle',
+            post_id: pid,
+            meta_key: key,
+            value: this.checked ? 1 : 0,
+            _wpnonce: gmlSeo.nonce
+        });
+    });
+
 })(jQuery);

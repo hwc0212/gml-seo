@@ -70,6 +70,17 @@ class GML_SEO_AI_Engine {
         update_post_meta( $post_id, '_gml_seo_generated', current_time( 'mysql' ) );
         update_post_meta( $post_id, '_gml_seo_hash', md5( $post->post_title . $post->post_content ) );
 
+        // ── Generate auto internal links (second AI call, cheap) ─────
+        // Uses the candidate index built from all previously-analyzed posts.
+        if ( class_exists( 'GML_SEO_Auto_Link' ) ) {
+            $links = GML_SEO_Auto_Link::generate_suggestions( $post_id, $data );
+            if ( ! empty( $links ) ) {
+                update_post_meta( $post_id, '_gml_seo_auto_links', $links );
+            } else {
+                delete_post_meta( $post_id, '_gml_seo_auto_links' );
+            }
+        }
+
         return $result;
     }
 
@@ -237,6 +248,14 @@ You are a world-class SEO consultant. Your optimization MUST follow Google's off
 - Canonical URL correct?
 - Any noindex that shouldn't be there?
 
+### 10. FAQ GENERATION (for rich results)
+Generate 3-5 frequently asked questions that REAL users searching for this topic would ask. Each Q&A must:
+- Be based on actual content of the page — do NOT invent facts not supported by the content
+- Match "People Also Ask" style questions (conversational, specific)
+- Have answer 40-150 words, complete and self-contained
+- Cover different angles of the primary keyword / search intent
+- If the page content is too thin to support accurate FAQ, return an empty array
+
 ## OUTPUT FORMAT
 
 Return a valid JSON object (NO markdown fences):
@@ -279,7 +298,14 @@ Return a valid JSON object (NO markdown fences):
 
   "alt_text_suggestions": {
     "<image_index_or_description>": "<descriptive alt text explaining image's relationship to content>"
-  }
+  },
+
+  "faq": [
+    {
+      "q": "<natural question a user would ask>",
+      "a": "<complete answer 40-150 words, grounded in page content>"
+    }
+  ]
 }
 
 ## CRITICAL RULES
@@ -294,6 +320,7 @@ Return a valid JSON object (NO markdown fences):
 8. alt_text_suggestions: provide descriptive alt text for images missing it, following Google's guideline that alt text should explain the image's relationship to the content
 9. DO NOT suggest meta keywords tag optimization — Google explicitly ignores it
 10. Internal link suggestions must use descriptive anchor text (never "click here" — Google says anchor text should tell users what the linked page contains)
+11. FAQ questions must be what REAL users would ask (use "People Also Ask" style). Answers must be grounded in the page content — never invent facts. If the page is too thin, return an empty faq array rather than making things up.
 PROMPT;
     }
 
@@ -322,6 +349,29 @@ PROMPT;
         // Score
         if ( isset( $result['score'] ) ) {
             update_post_meta( $post_id, '_gml_seo_score', (int) $result['score'] );
+        }
+
+        // FAQ data — stored for frontend rendering (schema + optional section)
+        if ( ! empty( $result['faq'] ) && is_array( $result['faq'] ) ) {
+            $faq_clean = [];
+            foreach ( $result['faq'] as $item ) {
+                if ( ! empty( $item['q'] ) && ! empty( $item['a'] ) ) {
+                    $faq_clean[] = [
+                        'q' => sanitize_text_field( $item['q'] ),
+                        'a' => wp_kses_post( $item['a'] ),
+                    ];
+                }
+            }
+            if ( ! empty( $faq_clean ) ) {
+                update_post_meta( $post_id, '_gml_seo_faq', $faq_clean );
+            } else {
+                delete_post_meta( $post_id, '_gml_seo_faq' );
+            }
+        }
+
+        // After SEO data is saved, update the auto-link candidate index
+        if ( class_exists( 'GML_SEO_Auto_Link' ) ) {
+            GML_SEO_Auto_Link::update_candidate( $post_id );
         }
 
         // Auto-fix slug if AI suggests and it's different

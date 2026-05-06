@@ -274,19 +274,39 @@ class GML_SEO_Admin {
         }
 
         global $wpdb;
-        $posts = $wpdb->get_results(
-            "SELECT p.ID, p.post_title, p.post_type
-             FROM {$wpdb->posts} p
-             LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_gml_seo_generated'
-             WHERE p.post_status = 'publish'
-               AND p.post_type IN ('post','page','product')
-               AND pm.meta_id IS NULL
-             ORDER BY p.post_date DESC LIMIT 200"
-        );
+
+        $force = ! empty( $_GET['force'] );
+
+        if ( $force ) {
+            $posts = $wpdb->get_results(
+                "SELECT p.ID, p.post_title, p.post_type
+                 FROM {$wpdb->posts} p
+                 WHERE p.post_status = 'publish'
+                   AND p.post_type IN ('post','page','product')
+                 ORDER BY p.post_date DESC LIMIT 500"
+            );
+        } else {
+            $posts = $wpdb->get_results(
+                "SELECT p.ID, p.post_title, p.post_type
+                 FROM {$wpdb->posts} p
+                 LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_gml_seo_generated'
+                 WHERE p.post_status = 'publish'
+                   AND p.post_type IN ('post','page','product')
+                   AND pm.meta_id IS NULL
+                 ORDER BY p.post_date DESC LIMIT 200"
+            );
+        }
         $count = count( $posts );
         ?>
         <h2>🚀 批量 AI 优化</h2>
-        <p>共 <strong><?php echo $count; ?></strong> 篇已发布内容尚未被 AI 优化。点击开始后，AI 会自动为每篇生成最优 SEO 标题、描述和关键词。</p>
+        <p>共 <strong><?php echo $count; ?></strong> 篇<?php echo $force ? '已发布内容（含已优化的，将重新生成 FAQ + 自动内链）' : '已发布内容尚未被 AI 优化'; ?>。</p>
+
+        <p style="background:#f0f6fc;border:1px solid #c3d9ed;padding:12px;border-radius:4px;">
+            <label>
+                <input type="checkbox" <?php checked( $force ); ?> onchange="window.location='?page=gml-seo&tab=bulk'+(this.checked?'&force=1':'');">
+                强制重新分析所有已优化页面（升级到 v1.4.0 后首次运行推荐，让旧文章获得 FAQ 和自动内链）
+            </label>
+        </p>
 
         <?php if ( $count > 0 ) : ?>
         <button id="gml-bulk-start" class="button button-primary button-hero">🚀 开始批量优化</button>
@@ -340,6 +360,9 @@ class GML_SEO_Admin {
         $optimized = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_gml_seo_generated'" );
         $pct = $total > 0 ? round( $optimized / $total * 100 ) : 0;
 
+        $with_faq   = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_gml_seo_faq'" );
+        $with_links = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_gml_seo_auto_links'" );
+
         $recent = $wpdb->get_results(
             "SELECT p.ID, p.post_title, p.post_type, pm.meta_value as gen_time
              FROM {$wpdb->posts} p
@@ -348,14 +371,22 @@ class GML_SEO_Admin {
              ORDER BY pm.meta_value DESC LIMIT 30"
         );
         ?>
-        <div style="display:flex;gap:20px;margin-bottom:20px;">
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;text-align:center;">
+        <div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
                 <div style="font-size:36px;font-weight:bold;color:#2271b1;"><?php echo $optimized; ?> / <?php echo $total; ?></div>
                 <div style="color:#666;">AI 已优化</div>
             </div>
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;text-align:center;">
+            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
                 <div style="font-size:36px;font-weight:bold;color:<?php echo $pct >= 80 ? '#00a32a' : ($pct >= 50 ? '#dba617' : '#d63638'); ?>;"><?php echo $pct; ?>%</div>
                 <div style="color:#666;">优化覆盖率</div>
+            </div>
+            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
+                <div style="font-size:36px;font-weight:bold;color:#6f42c1;"><?php echo $with_faq; ?></div>
+                <div style="color:#666;">FAQ Rich Result</div>
+            </div>
+            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
+                <div style="font-size:36px;font-weight:bold;color:#0891b2;"><?php echo $with_links; ?></div>
+                <div style="color:#666;">AI 自动内链</div>
             </div>
         </div>
 

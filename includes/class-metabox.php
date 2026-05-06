@@ -139,6 +139,62 @@ class GML_SEO_Metabox {
             </div>
         </div>
 
+        <!-- ── Editable SEO Fields ── -->
+        <!-- NOTE: Editable SEO fields are rendered in render() above the report area -->
+
+        <!-- ── AI-generated FAQ ── -->
+        <?php
+        $faq = get_post_meta( $post->ID, '_gml_seo_faq', true );
+        if ( ! empty( $faq ) && is_array( $faq ) ) :
+            $faq_hidden = (bool) get_post_meta( $post->ID, '_gml_seo_faq_hide', true );
+        ?>
+        <div class="gml-seo-suggestions">
+            <h4>❓ AI 生成的 FAQ（自动输出 FAQPage schema）</h4>
+            <p style="font-size:12px;color:#999;">Google 富片段要求 FAQ 必须在页面上可见。插件会自动在文章末尾追加 FAQ section。</p>
+            <label style="display:block;margin:8px 0;font-weight:400;">
+                <input type="checkbox" id="gml-seo-faq-hide" <?php checked( $faq_hidden ); ?>>
+                在此文章前端隐藏 FAQ 可见区块（但仍输出 schema）
+            </label>
+            <div style="margin-top:10px;">
+            <?php foreach ( $faq as $item ) : ?>
+                <details style="margin-bottom:6px;border:1px solid #e0e0e0;border-radius:4px;padding:8px 12px;background:#fff;">
+                    <summary style="cursor:pointer;font-weight:600;"><?php echo esc_html( $item['q'] ); ?></summary>
+                    <div style="margin-top:6px;font-size:13px;color:#444;line-height:1.6;"><?php echo wp_kses_post( $item['a'] ); ?></div>
+                </details>
+            <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- ── Auto Internal Links ── -->
+        <?php
+        $auto_links = get_post_meta( $post->ID, '_gml_seo_auto_links', true );
+        if ( ! empty( $auto_links ) && is_array( $auto_links ) ) :
+            $auto_hidden = (bool) get_post_meta( $post->ID, '_gml_seo_auto_links_hide', true );
+        ?>
+        <div class="gml-seo-suggestions">
+            <h4>🔗 AI 自动内链（<?php echo count( $auto_links ); ?> 个）</h4>
+            <p style="font-size:12px;color:#999;">仅通过 the_content 过滤器输出，不会修改文章原文；关闭后立即失效可回滚。</p>
+            <label style="display:block;margin:8px 0;font-weight:400;">
+                <input type="checkbox" id="gml-seo-auto-links-hide" <?php checked( $auto_hidden ); ?>>
+                在此文章前端关闭 AI 自动内链
+            </label>
+            <ul style="margin-top:10px;">
+            <?php foreach ( $auto_links as $link ) :
+                $target = get_post( $link['target_id'] ?? 0 );
+            ?>
+                <li style="margin-bottom:6px;">
+                    <code style="color:#2271b1;"><?php echo esc_html( $link['anchor'] ?? '' ); ?></code>
+                    → <a href="<?php echo esc_url( $link['target_url'] ?? '' ); ?>" target="_blank"><?php echo esc_html( $target ? $target->post_title : ( $link['target_url'] ?? '' ) ); ?></a>
+                    <?php if ( ! empty( $link['reason'] ) ) : ?>
+                        <div style="font-size:12px;color:#666;margin-top:2px;"><?php echo esc_html( $link['reason'] ); ?></div>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
+
         <!-- ── SEO Audit Issues ── -->
         <?php if ( ! empty( $report['audit']['issues'] ) ) : ?>
         <div class="gml-seo-audit">

@@ -38,6 +38,10 @@ class GML_SEO_Schema {
             }
 
             $schemas[] = $this->breadcrumb_schema( $id );
+
+            // FAQ schema (if AI generated FAQ for this post)
+            $faq_schema = $this->faq_schema( $id );
+            if ( $faq_schema ) $schemas[] = $faq_schema;
         }
 
         foreach ( $schemas as $s ) {
@@ -151,6 +155,34 @@ class GML_SEO_Schema {
         }
 
         return $schema;
+    }
+
+    // ── FAQ ──────────────────────────────────────────────────────────
+
+    private function faq_schema( $id ) {
+        $faq = get_post_meta( $id, '_gml_seo_faq', true );
+        if ( empty( $faq ) || ! is_array( $faq ) ) return null;
+
+        $main = [];
+        foreach ( $faq as $item ) {
+            if ( empty( $item['q'] ) || empty( $item['a'] ) ) continue;
+            $main[] = [
+                '@type'          => 'Question',
+                'name'           => $item['q'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text'  => wp_strip_all_tags( $item['a'] ),
+                ],
+            ];
+        }
+
+        if ( empty( $main ) ) return null;
+
+        return [
+            '@context'   => 'https://schema.org',
+            '@type'      => 'FAQPage',
+            'mainEntity' => $main,
+        ];
     }
 
     // ── Breadcrumb ───────────────────────────────────────────────────

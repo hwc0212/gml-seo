@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, meta tags, performance
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,8 @@ The AI engine (Google Gemini or DeepSeek) analyzes every published page and auto
 * Internal linking suggestions with descriptive anchor text
 * URL slug optimization suggestions
 * Image alt text auto-generation and filling
+* FAQ generation with FAQPage schema for Google rich results
+* Automatic internal linking across the entire site
 
 = Built-in Performance Optimization =
 
@@ -110,6 +112,12 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.4.0 =
+* Added: Automatic internal linking — AI picks the most semantically relevant posts on your site and injects descriptive anchor text links via `the_content` filter (DB content is never modified, fully reversible per-post).
+* Added: FAQ generation with FAQPage schema — AI generates 3-5 "People Also Ask" style Q&As grounded in page content, rendered as an accessible section plus JSON-LD for Google rich results.
+* Added: Dashboard cards showing FAQ and auto-link coverage across the site.
+* Added: Bulk optimize "force re-analyze" mode — backfill FAQ and auto-links for previously optimized posts.
+
 = 1.3.0 =
 * Fixed: Sub-sitemap 404 — auto flush rewrite rules on version upgrade; improved 404 status reset in sitemap renderer.
 * Fixed: Duplicate gml-sitemap.xml in robots.txt when GML Translate is active.
@@ -135,6 +143,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+Adds automatic internal linking and FAQ schema — two of the highest-impact SEO wins. After upgrading, run Bulk Optimize with "force re-analyze" to backfill existing posts.
 
 = 1.3.0 =
 Fixes sub-sitemap 404 errors, robots.txt duplicate lines, and adds manual SEO field editing without AI dependency. Recommended update for all users.

@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: Zero-config AI-powered SEO & Performance. Gemini auto-optimizes titles, descriptions, schema, sitemaps, and page speed. Just install, add your API key, done.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.3.0' );
+define( 'GML_SEO_VER', '1.4.0' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -35,6 +35,8 @@ final class GML_SEO {
         require_once GML_SEO_DIR . 'includes/class-meta-tags.php';
         require_once GML_SEO_DIR . 'includes/class-schema.php';
         require_once GML_SEO_DIR . 'includes/class-sitemap.php';
+        require_once GML_SEO_DIR . 'includes/class-auto-link.php';
+        require_once GML_SEO_DIR . 'includes/class-faq-display.php';
         require_once GML_SEO_DIR . 'includes/class-ai-engine.php';
         require_once GML_SEO_DIR . 'includes/class-code-injection.php';
         require_once GML_SEO_DIR . 'includes/class-metabox.php';
@@ -83,12 +85,14 @@ final class GML_SEO {
 
         new GML_SEO_Admin();
         new GML_SEO_Code_Injection();
+        new GML_SEO_Auto_Link();
 
         if ( ! is_admin() ) {
             new GML_SEO_Meta_Tags();
             new GML_SEO_Schema();
             new GML_SEO_Sitemap();
             new GML_SEO_Performance();
+            new GML_SEO_FAQ_Display();
         }
 
         if ( is_admin() ) {
@@ -97,6 +101,7 @@ final class GML_SEO {
 
         // Register AJAX handler for manual meta saves (always available)
         add_action( 'wp_ajax_gml_seo_apply', [ $this, 'ajax_apply_meta' ] );
+        add_action( 'wp_ajax_gml_seo_toggle', [ $this, 'ajax_toggle_meta' ] );
 
         // AI engine — runs on save_post to auto-generate SEO data
         if ( self::has_ai_key() ) {
@@ -117,6 +122,26 @@ final class GML_SEO {
         if ( ! in_array( $key, $allowed, true ) ) wp_send_json_error( 'Invalid key' );
 
         update_post_meta( $pid, $key, $val );
+        wp_send_json_success();
+    }
+
+    /** AJAX: toggle a boolean meta flag (FAQ hide, auto-link hide). */
+    public function ajax_toggle_meta() {
+        check_ajax_referer( 'gml_seo_nonce' );
+        $pid  = absint( $_POST['post_id'] ?? 0 );
+        $key  = sanitize_text_field( $_POST['meta_key'] ?? '' );
+        $val  = ! empty( $_POST['value'] );
+
+        if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) wp_send_json_error( 'Unauthorized' );
+
+        $allowed = [ '_gml_seo_faq_hide', '_gml_seo_auto_links_hide', '_gml_seo_noindex' ];
+        if ( ! in_array( $key, $allowed, true ) ) wp_send_json_error( 'Invalid key' );
+
+        if ( $val ) {
+            update_post_meta( $pid, $key, 1 );
+        } else {
+            delete_post_meta( $pid, $key );
+        }
         wp_send_json_success();
     }
 

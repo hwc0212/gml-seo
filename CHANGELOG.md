@@ -2,6 +2,33 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.4.0] - 2026-04-16
+
+### Added
+- 🔗 **AI 自动内链（Auto Internal Linking）** — Google SEO 官方推荐的核心优化项
+  - AI 分析文章内容，从站内已发布页面中挑选 3-5 个语义最相关的目标
+  - 生成描述性锚文本（遵循 Google 指南，绝不使用"点击这里"、"阅读更多"）
+  - 通过 `the_content` 过滤器注入，**不修改数据库原文**，关闭即回滚
+  - 自动维护候选索引（`gml_seo_link_index` option），AI 每次优化后增量更新
+  - 安全注入：跳过 `<a>`、`<h1-6>`、`<code>`、`<script>` 等保护区域，只替换首次出现的锚文本
+  - 通用锚文本（click here、read more 等）自动过滤
+  - 每篇文章最多 5 条，AI 判断无合适匹配时返回空数组（不强制内链）
+  - 支持每篇文章级关闭：编辑器 metabox 勾选即可隐藏该文章的自动内链
+  - 帖子删除/下线时自动从候选索引移除
+- ❓ **FAQ Schema 自动生成** — 最易获得的 Google Rich Result
+  - AI 基于文章内容生成 3-5 组"People Also Ask"风格的 Q&A
+  - 答案必须基于实际内容（不凭空编造），单答 40-150 字
+  - 自动在文章末尾追加可视化 FAQ section（accessible `<details>`，内置样式）
+  - 自动输出 `FAQPage` JSON-LD schema（Google rich result 必需）
+  - 支持每篇文章级隐藏可见区块（schema 仍保留）
+  - 瘦站内容时 AI 会返回空数组，不强制生成
+- 📊 **Dashboard 新增统计卡** — FAQ rich result 数 + AI 自动内链数
+- 🔄 **批量优化支持"强制重新分析"模式** — 升级到 v1.4.0 后可一键为所有旧文章补齐 FAQ + 自动内链
+
+### Changed
+- AI prompt 扩展：同一次调用新增 FAQ 生成字段，零额外成本
+- Critical rule 新增对 FAQ 准确性的约束（禁止编造事实）
+
 ## [1.3.0] - 2026-04-16
 
 ### Fixed
