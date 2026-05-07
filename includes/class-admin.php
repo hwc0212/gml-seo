@@ -336,6 +336,7 @@ class GML_SEO_Admin {
                 if(!run||i>=posts.length){run=false;document.getElementById('gml-bulk-stop').style.display='none';document.getElementById('gml-bulk-start').style.display='';if(i>=posts.length)log('✅ 全部完成！');return;}
                 var p=posts[i];log('⏳ '+p.t+'...');
                 var fd=new FormData();fd.append('action','gml_seo_bulk');fd.append('post_id',p.id);fd.append('_wpnonce','<?php echo wp_create_nonce("gml_seo_bulk"); ?>');
+                if(i===0)fd.append('first','1');
                 fetch(ajaxurl,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
                     i++;document.getElementById('gml-bulk-cur').textContent=i;
                     document.getElementById('gml-bulk-bar').style.width=Math.round(i/posts.length*100)+'%';
@@ -362,6 +363,7 @@ class GML_SEO_Admin {
 
         $with_faq   = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_gml_seo_faq'" );
         $with_links = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_gml_seo_auto_links'" );
+        $index_size = count( get_option( 'gml_seo_link_index', [] ) );
 
         $recent = $wpdb->get_results(
             "SELECT p.ID, p.post_title, p.post_type, pm.meta_value as gen_time
@@ -371,24 +373,67 @@ class GML_SEO_Admin {
              ORDER BY pm.meta_value DESC LIMIT 30"
         );
         ?>
-        <div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
-                <div style="font-size:36px;font-weight:bold;color:#2271b1;"><?php echo $optimized; ?> / <?php echo $total; ?></div>
-                <div style="color:#666;">AI 已优化</div>
+        <style>
+        .gml-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:20px 0;}
+        .gml-stat-card{background:#fff;padding:20px 16px;border:1px solid #ccd0d4;border-radius:6px;text-align:center;}
+        .gml-stat-num{font-size:34px;font-weight:700;line-height:1.1;margin-bottom:6px;}
+        .gml-stat-label{color:#666;font-size:13px;line-height:1.4;}
+        .gml-index-panel{background:#f0f6fc;border:1px solid #c3d9ed;padding:14px 18px;border-radius:6px;margin:18px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+        .gml-index-panel strong{color:#1d2327;}
+        .gml-index-panel .description{color:#555;font-size:13px;margin:0;flex:1;min-width:200px;}
+        </style>
+
+        <div class="gml-stats-grid">
+            <div class="gml-stat-card">
+                <div class="gml-stat-num" style="color:#2271b1;"><?php echo $optimized; ?><span style="font-size:20px;color:#999;"> / <?php echo $total; ?></span></div>
+                <div class="gml-stat-label">AI 已优化</div>
             </div>
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
-                <div style="font-size:36px;font-weight:bold;color:<?php echo $pct >= 80 ? '#00a32a' : ($pct >= 50 ? '#dba617' : '#d63638'); ?>;"><?php echo $pct; ?>%</div>
-                <div style="color:#666;">优化覆盖率</div>
+            <div class="gml-stat-card">
+                <div class="gml-stat-num" style="color:<?php echo $pct >= 80 ? '#00a32a' : ($pct >= 50 ? '#dba617' : '#d63638'); ?>;"><?php echo $pct; ?>%</div>
+                <div class="gml-stat-label">优化覆盖率</div>
             </div>
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
-                <div style="font-size:36px;font-weight:bold;color:#6f42c1;"><?php echo $with_faq; ?></div>
-                <div style="color:#666;">FAQ Rich Result</div>
+            <div class="gml-stat-card">
+                <div class="gml-stat-num" style="color:#6f42c1;"><?php echo $with_faq; ?></div>
+                <div class="gml-stat-label">FAQ Rich Result</div>
             </div>
-            <div style="background:#fff;padding:20px;border:1px solid #ccd0d4;border-radius:4px;flex:1;min-width:180px;text-align:center;">
-                <div style="font-size:36px;font-weight:bold;color:#0891b2;"><?php echo $with_links; ?></div>
-                <div style="color:#666;">AI 自动内链</div>
+            <div class="gml-stat-card">
+                <div class="gml-stat-num" style="color:#0891b2;"><?php echo $with_links; ?></div>
+                <div class="gml-stat-label">AI 自动内链</div>
             </div>
         </div>
+
+        <div class="gml-index-panel">
+            <div>
+                <strong>🔗 内链候选索引：<?php echo $index_size; ?> 篇</strong>
+            </div>
+            <p class="description">
+                索引记录站内已优化页面用于 AI 匹配内链。从 v1.3.x 升级的旧数据不会自动进入索引，需要手动重建一次。
+            </p>
+            <button type="button" id="gml-rebuild-index" class="button button-secondary">🔄 重建索引</button>
+            <span id="gml-rebuild-msg" style="color:#00a32a;font-size:13px;display:none;"></span>
+        </div>
+
+        <script>
+        document.getElementById('gml-rebuild-index').addEventListener('click', function(){
+            var btn = this, msg = document.getElementById('gml-rebuild-msg');
+            btn.disabled = true; btn.textContent = '⏳ 正在重建...';
+            var fd = new FormData();
+            fd.append('action', 'gml_seo_rebuild_index');
+            fd.append('_wpnonce', '<?php echo wp_create_nonce( 'gml_seo_admin' ); ?>');
+            fetch(ajaxurl, { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+                btn.disabled = false; btn.textContent = '🔄 重建索引';
+                if (d.success) {
+                    msg.textContent = '✓ 索引已重建，共收录 ' + d.data.count + ' 篇页面';
+                    msg.style.display = '';
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    msg.style.color = '#d63638';
+                    msg.textContent = '❌ ' + (d.data || '重建失败');
+                    msg.style.display = '';
+                }
+            });
+        });
+        </script>
 
         <?php if ( $recent ) : ?>
         <table class="wp-list-table widefat fixed striped">

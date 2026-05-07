@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: Zero-config AI-powered SEO & Performance. Gemini auto-optimizes titles, descriptions, schema, sitemaps, and page speed. Just install, add your API key, done.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.4.0' );
+define( 'GML_SEO_VER', '1.4.1' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -102,6 +102,7 @@ final class GML_SEO {
         // Register AJAX handler for manual meta saves (always available)
         add_action( 'wp_ajax_gml_seo_apply', [ $this, 'ajax_apply_meta' ] );
         add_action( 'wp_ajax_gml_seo_toggle', [ $this, 'ajax_toggle_meta' ] );
+        add_action( 'wp_ajax_gml_seo_rebuild_index', [ $this, 'ajax_rebuild_index' ] );
 
         // AI engine — runs on save_post to auto-generate SEO data
         if ( self::has_ai_key() ) {
@@ -143,6 +144,16 @@ final class GML_SEO {
             delete_post_meta( $pid, $key );
         }
         wp_send_json_success();
+    }
+
+    /** AJAX: rebuild the auto-link candidate index from all optimized posts. */
+    public function ajax_rebuild_index() {
+        check_ajax_referer( 'gml_seo_admin' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+        if ( ! class_exists( 'GML_SEO_Auto_Link' ) ) wp_send_json_error( 'Module missing' );
+
+        $count = GML_SEO_Auto_Link::rebuild_index();
+        wp_send_json_success( [ 'count' => $count ] );
     }
 
     /** Check if an AI API key is configured for the selected engine. */

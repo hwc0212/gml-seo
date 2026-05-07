@@ -454,6 +454,14 @@ PROMPT;
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
 
         $pid    = absint( $_POST['post_id'] ?? 0 );
+
+        // On the first bulk run after upgrade, rebuild the candidate index
+        // so every post has a full pool of candidates to link to.
+        $first  = ! empty( $_POST['first'] );
+        if ( $first && class_exists( 'GML_SEO_Auto_Link' ) ) {
+            GML_SEO_Auto_Link::rebuild_index();
+        }
+
         $result = $this->generate_for_post( $pid );
 
         if ( is_wp_error( $result ) ) wp_send_json_error( $result->get_error_message() );

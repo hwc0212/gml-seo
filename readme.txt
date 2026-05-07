@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, meta tags, performance
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,6 +112,11 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.4.1 =
+* Fixed: Auto-link count stays at 0 after bulk optimize — rebuilt the candidate index seeding so posts processed early in the run now have candidates to link to; added Dashboard "Rebuild Index" button for one-click repair.
+* Fixed: Anchor-text verbatim check now uses full post content instead of truncated excerpt.
+* Fixed: Dashboard stats grid layout using CSS Grid so labels no longer overlap.
+
 = 1.4.0 =
 * Added: Automatic internal linking — AI picks the most semantically relevant posts on your site and injects descriptive anchor text links via `the_content` filter (DB content is never modified, fully reversible per-post).
 * Added: FAQ generation with FAQPage schema — AI generates 3-5 "People Also Ask" style Q&As grounded in page content, rendered as an accessible section plus JSON-LD for Google rich results.
@@ -143,6 +148,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+Fixes auto-link count stuck at 0 after bulk optimize. After upgrading, click "Rebuild Index" on Dashboard then re-run Bulk with force mode.
 
 = 1.4.0 =
 Adds automatic internal linking and FAQ schema — two of the highest-impact SEO wins. After upgrading, run Bulk Optimize with "force re-analyze" to backfill existing posts.

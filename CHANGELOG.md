@@ -2,6 +2,24 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.4.1] - 2026-04-16
+
+### Fixed
+- 🐛 **AI 自动内链 = 0** — v1.4.0 升级后批量优化完成但 Dashboard 显示"AI 自动内链: 0"
+  - 根因 1：候选索引是增量构建的，批量优化时处理第 1 篇时索引为空，无候选可选；处理第 2 篇只有 1 个候选，且代码要求 `< 2` 时跳过，导致前几十篇都失败
+  - 根因 2：anchor 验证用的是 `collect_page_data()` 裁剪过的 3000 字内容，而 AI 拿到的是 2500 字片段；两者不一致导致"anchor 不在原文"误判
+  - 根因 3：prompt 里把 `existing_seo_title`（SEO 标题）当作 primary keyword 传给 AI，误导语义匹配
+  - 修复：
+    1. 新增 `GML_SEO_Auto_Link::rebuild_index()` 方法，从所有已优化页面一次性构建索引
+    2. 批量优化第一次请求时自动触发 rebuild，保证所有帖子都有完整候选池
+    3. Dashboard 新增"🔄 重建索引"按钮，显示当前索引收录数
+    4. Anchor 验证改用原文完整内容（不再用裁剪版）
+    5. Prompt 改用正确的 `_gml_seo_primary_kw` 作为 primary keyword
+    6. 最低候选数从 `< 2` 改为 `empty()`
+    7. 失败时写入 `error_log`，记录拒绝原因（便于排查）
+- 🐛 **Dashboard 统计卡排版错位** — 4 张卡片在某些宽度下 label 文字被压缩到一行导致遮挡
+  - 修复：改用 CSS Grid + `auto-fit minmax(180px,1fr)`，自适应且 label 字号固定
+
 ## [1.4.0] - 2026-04-16
 
 ### Added

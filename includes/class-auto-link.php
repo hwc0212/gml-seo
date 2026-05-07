@@ -47,6 +47,58 @@ class GML_SEO_Auto_Link {
         }
     }
 
+    /**
+     * Rebuild the entire candidate index from all published posts that
+     * have SEO data. Used as a one-time seed after upgrading to v1.4.0
+     * and at the start of a bulk run to ensure candidates exist.
+     *
+     * Runs at most once per admin request (cached via static flag).
+     */
+    public static function rebuild_index() {
+        global $wpdb;
+
+        $rows = $wpdb->get_results(
+            "SELECT p.ID
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_gml_seo_generated'
+             WHERE p.post_status = 'publish'"
+        );
+
+        $index = [];
+        foreach ( $rows as $r ) {
+            $post = get_post( $r->ID );
+            if ( ! $post ) continue;
+
+            $pt_obj = get_post_type_object( $post->post_type );
+            if ( ! $pt_obj || ! $pt_obj->public || $post->post_type === 'attachment' ) continue;
+
+            $primary = get_post_meta( $post->ID, '_gml_seo_primary_kw', true );
+            $kws_raw = get_post_meta( $post->ID, '_gml_seo_keywords', true );
+            $desc    = get_post_meta( $post->ID, '_gml_seo_desc', true );
+
+            $secondary = [];
+            if ( $kws_raw ) {
+                $parts = preg_split( '/[,，;；]/u', $kws_raw );
+                foreach ( $parts as $p ) {
+                    $p = trim( $p );
+                    if ( $p && $p !== $primary ) $secondary[] = $p;
+                }
+            }
+
+            $index[ (int) $post->ID ] = [
+                'title'     => get_the_title( $post->ID ),
+                'url'       => get_permalink( $post->ID ),
+                'primary'   => $primary,
+                'secondary' => array_slice( $secondary, 0, 4 ),
+                'excerpt'   => $desc ?: wp_trim_words( wp_strip_all_tags( $post->post_content ), 25 ),
+                'type'      => $post->post_type,
+            ];
+        }
+
+        update_option( self::INDEX_OPTION, $index, false );
+        return count( $index );
+    }
+
     // ══════════════════════════════════════════════════════════════════
     //  Candidate Index Management
     // ══════════════════════════════════════════════════════════════════
@@ -131,7 +183,7 @@ class GML_SEO_Auto_Link {
      */
     public static function generate_suggestions( $post_id, $post_data ) {
         $candidates = self::get_candidates( $post_id );
-        if ( count( $candidates ) < 2 ) return []; // Not enough candidates
+        if ( empty( $candidates ) ) return []; // Nothing to link to
 
         // Build compact candidate list for prompt
         $cand_lines = [];
@@ -162,10 +214,11 @@ phrase in the content that should become the anchor text.
 PROMPT;
 
         $content_snippet = mb_substr( $post_data['content'], 0, 2500 );
+        $primary_kw = get_post_meta( $post_id, '_gml_seo_primary_kw', true );
 
         $prompt  = "SOURCE PAGE:\n";
         $prompt .= "Title: " . $post_data['title'] . "\n";
-        $prompt .= "Primary keyword: " . ( $post_data['existing_seo_title'] ?: '' ) . "\n";
+        $prompt .= "Primary keyword: " . ( $primary_kw ?: '(not set)' ) . "\n";
         $prompt .= "Content:\n" . $content_snippet . "\n\n";
         $prompt .= "CANDIDATE PAGES (id | type | title | primary_kw | excerpt):\n";
         $prompt .= implode( "\n", $cand_lines ) . "\n\n";
@@ -192,15 +245,25 @@ INSTRUCT;
 
         $api = new GML_SEO_AI_Client();
         $res = $api->call_json( $prompt, $system, 1024 );
-        if ( is_wp_error( $res ) || empty( $res['links'] ) || ! is_array( $res['links'] ) ) {
+        if ( is_wp_error( $res ) ) {
+            error_log( 'GML SEO auto-link: AI error for post ' . $post_id . ': ' . $res->get_error_message() );
+            return [];
+        }
+        if ( empty( $res['links'] ) || ! is_array( $res['links'] ) ) {
+            error_log( 'GML SEO auto-link: AI returned no links for post ' . $post_id . ' (' . count( $candidates ) . ' candidates available)' );
             return [];
         }
 
         // Validate each suggestion: anchor must actually exist in content,
         // target_id must be in candidates, no duplicates.
-        $full_content_lower = mb_strtolower( $post_data['content'] );
-        $out  = [];
-        $seen = [];
+        // For verbatim check we search the FULL source content, not the
+        // snippet that was sent to AI (AI may anchor on phrases beyond 2500 chars).
+        $full_post = get_post( $post_id );
+        $full_text = $full_post ? wp_strip_all_tags( strip_shortcodes( $full_post->post_content ) ) : $post_data['content'];
+        $full_content_lower = mb_strtolower( $full_text );
+        $out      = [];
+        $seen     = [];
+        $rejected = [];
 
         foreach ( $res['links'] as $link ) {
             if ( count( $out ) >= self::MAX_LINKS ) break;
@@ -208,17 +271,20 @@ INSTRUCT;
             $tid    = (int) ( $link['target_id'] ?? 0 );
             $anchor = trim( (string) ( $link['anchor'] ?? '' ) );
 
-            if ( ! $tid || ! $anchor ) continue;
-            if ( isset( $seen[ $tid ] ) ) continue;
-            if ( ! isset( $candidates[ $tid ] ) ) continue;
-            if ( mb_strlen( $anchor ) < 2 || mb_strlen( $anchor ) > 80 ) continue;
+            if ( ! $tid || ! $anchor )                      { $rejected[] = "empty:{$anchor}"; continue; }
+            if ( isset( $seen[ $tid ] ) )                   { $rejected[] = "dup:{$tid}"; continue; }
+            if ( ! isset( $candidates[ $tid ] ) )           { $rejected[] = "missing_cand:{$tid}"; continue; }
+            if ( mb_strlen( $anchor ) < 2 || mb_strlen( $anchor ) > 80 ) { $rejected[] = "len:{$anchor}"; continue; }
 
             // Reject generic anchors
             $generic = [ 'click here', 'read more', 'learn more', 'this post', 'this article', 'here', 'more' ];
-            if ( in_array( mb_strtolower( $anchor ), $generic, true ) ) continue;
+            if ( in_array( mb_strtolower( $anchor ), $generic, true ) ) { $rejected[] = "generic:{$anchor}"; continue; }
 
             // Anchor must exist verbatim in source content
-            if ( mb_strpos( $full_content_lower, mb_strtolower( $anchor ) ) === false ) continue;
+            if ( mb_strpos( $full_content_lower, mb_strtolower( $anchor ) ) === false ) {
+                $rejected[] = "not_in_content:{$anchor}";
+                continue;
+            }
 
             $out[] = [
                 'target_id'  => $tid,
@@ -227,6 +293,10 @@ INSTRUCT;
                 'reason'     => sanitize_text_field( $link['reason'] ?? '' ),
             ];
             $seen[ $tid ] = true;
+        }
+
+        if ( empty( $out ) && ! empty( $rejected ) ) {
+            error_log( 'GML SEO auto-link: all suggestions rejected for post ' . $post_id . ': ' . implode( '; ', $rejected ) );
         }
 
         return $out;
