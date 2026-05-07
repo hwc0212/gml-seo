@@ -2,6 +2,17 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.6.1] - 2026-04-16
+
+### Fixed
+- 🐛 **Fatal error — 独立 GML Translate 仍激活时站点崩溃**
+  - 根因：v1.6.0 的 bootstrap 在定义 `GML_VERSION`/`GML_PLUGIN_DIR` 等常量时没先检测独立 GML Translate 插件是否还在运行。独立插件随后读取这些常量，尝试加载 `GML_PLUGIN_DIR . 'includes/class-autoloader.php'`，路径被我们覆盖成了 `gml-seo/includes/translate/includes/class-autoloader.php`（多了一层 includes），文件找不到 → fatal
+  - 修复：`GML_SEO_Translate_Bootstrap::load()` **第一步**就检查 `active_plugins`，如果独立 GML Translate 仍在列表里，直接跳过常量定义、自动加载器注册、所有 init 流程
+  - 新增 `standalone_is_active()` 方法，检查 `active_plugins`、`active_sitewide_plugins`（multisite）、以及 class_exists 三重验证
+  - 在 admin 显示持续可见的警告横幅，带一键"停用独立插件"按钮
+  - Translate tab 在独立插件激活时显示迁移引导而非报错
+- **重要**：v1.6.0 用户如果遇到白屏，用 FTP/SSH 删除 `wp-content/plugins/gml-translate/` 即可恢复。然后上传 v1.6.1 替代。
+
 ## [1.6.0] - 2026-04-16
 
 ### 🔀 GML Translate 已合并进本插件

@@ -170,6 +170,20 @@ class GML_SEO_Admin {
     // ── Translate Tab (bundled GML Translate module) ─────────────────
 
     private function tab_translate() {
+        // If standalone GML Translate is still active, the bundled module
+        // isn't loaded (to prevent class redeclaration fatals). Show guidance.
+        if ( class_exists( 'GML_SEO_Translate_Bootstrap' ) && GML_SEO_Translate_Bootstrap::standalone_is_active() ) {
+            $deactivate_url = wp_nonce_url(
+                admin_url( 'plugins.php?action=deactivate&plugin=gml-translate/gml-translate.php' ),
+                'deactivate-plugin_gml-translate/gml-translate.php'
+            );
+            echo '<div class="notice notice-warning inline"><p>';
+            echo '<strong>⚠️ 独立的 GML Translate 插件正在运行。</strong> ';
+            echo '请先停用它，本插件将自动接管翻译功能，所有数据（翻译记忆库、语言配置、术语表）会完整保留。';
+            echo '</p><p><a class="button button-primary" href="' . esc_url( $deactivate_url ) . '">停用独立 GML Translate 插件</a></p></div>';
+            return;
+        }
+
         if ( ! class_exists( 'GML_Admin_Settings' ) ) {
             echo '<div class="notice notice-error"><p>Translation module failed to load.</p></div>';
             return;

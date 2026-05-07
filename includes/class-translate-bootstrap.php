@@ -26,6 +26,16 @@ class GML_SEO_Translate_Bootstrap {
     public static function load() {
         if ( self::$loaded ) return;
 
+        // CRITICAL: If the standalone GML Translate plugin is still active,
+        // DO NOT load the bundled module — it would cause fatal class
+        // redeclaration errors (GML_Translator, GML_Installer, etc. would
+        // be defined twice). We wait for the user to deactivate it.
+        if ( self::standalone_is_active() ) {
+            self::$loaded = false;
+            add_action( 'admin_notices', [ __CLASS__, 'show_conflict_notice' ] );
+            return;
+        }
+
         // GML Translate expects these constants. We mirror them so the bundled
         // code runs unchanged.
         if ( ! defined( 'GML_VERSION' ) ) {
@@ -45,6 +55,53 @@ class GML_SEO_Translate_Bootstrap {
         self::register_autoloader();
 
         self::$loaded = true;
+    }
+
+    /**
+     * Check whether the standalone GML Translate plugin is currently active.
+     * Uses the active_plugins option directly — safe to call before
+     * wp-admin/includes/plugin.php is loaded.
+     */
+    public static function standalone_is_active() {
+        $active = (array) get_option( 'active_plugins', [] );
+        if ( in_array( 'gml-translate/gml-translate.php', $active, true ) ) {
+            return true;
+        }
+        // Also check network-activated plugins (multisite)
+        if ( is_multisite() ) {
+            $network = (array) get_site_option( 'active_sitewide_plugins', [] );
+            if ( isset( $network['gml-translate/gml-translate.php'] ) ) {
+                return true;
+            }
+        }
+        // Defensive: check if classes are already defined (plugin loaded earlier)
+        if ( class_exists( 'GML_Translate', false ) || class_exists( 'GML_Installer', false ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    public static function show_conflict_notice() {
+        if ( ! current_user_can( 'manage_options' ) ) return;
+        $deactivate_url = wp_nonce_url(
+            admin_url( 'plugins.php?action=deactivate&plugin=gml-translate/gml-translate.php' ),
+            'deactivate-plugin_gml-translate/gml-translate.php'
+        );
+        ?>
+        <div class="notice notice-warning">
+            <p>
+                <strong>⚠️ GML AI SEO:</strong>
+                检测到独立的 <strong>GML Translate</strong> 插件正在运行。
+                从 v1.6.0 起，翻译功能已内置于本插件。请先停用独立的 GML Translate 插件以避免冲突。
+                翻译数据（数据库表、语言配置、翻译记忆库）在停用后依然保留并会被本插件无缝复用。
+            </p>
+            <p>
+                <a href="<?php echo esc_url( $deactivate_url ); ?>" class="button button-primary">
+                    停用独立 GML Translate 插件
+                </a>
+            </p>
+        </div>
+        <?php
     }
 
     /**
@@ -82,6 +139,7 @@ class GML_SEO_Translate_Bootstrap {
      */
     public static function init() {
         if ( ! self::$loaded ) self::load();
+        if ( ! self::$loaded ) return; // conflict with standalone — skip
 
         // If no target languages configured, only load admin settings
         // (so user can configure it) and skip the heavy stuff.
@@ -134,6 +192,7 @@ class GML_SEO_Translate_Bootstrap {
      */
     public static function install() {
         if ( ! self::$loaded ) self::load();
+        if ( ! self::$loaded ) return; // conflict with standalone — skip
         if ( class_exists( 'GML_Installer' ) ) {
             GML_Installer::activate();
         }
@@ -144,6 +203,7 @@ class GML_SEO_Translate_Bootstrap {
      * the translation memory so users don't lose work.
      */
     public static function deactivate() {
+        if ( ! self::$loaded ) return;
         if ( class_exists( 'GML_Installer' ) ) {
             GML_Installer::deactivate();
         }

@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,10 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.6.1 =
+* Fixed: Critical — site would white-screen when the standalone GML Translate plugin was still active after upgrading to 1.6.0. Bootstrap now detects the standalone plugin BEFORE defining any shared constants.
+* Added: Persistent admin notice with one-click "Deactivate standalone" button when both plugins coexist.
+
 = 1.6.0 =
 * Merged: GML Translate plugin fully absorbed. Dynamic AI translation, hash-based translation memory, language switcher, hreflang, multilingual sitemap, translation editor, glossary, exclusion rules, content crawler, Weglot importer.
 * Seamless migration: Standalone GML Translate auto-deactivated on activation; `wp_gml_index` / `wp_gml_queue` tables and all options preserved — zero re-translation cost.
@@ -172,6 +176,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.6.1 =
+Critical fix for v1.6.0 fatal error when standalone GML Translate is still active. Upgrade immediately if you installed v1.6.0.
 
 = 1.6.0 =
 GML Translate is now part of GML AI SEO. Upgrade, then uninstall the standalone plugin — all translation memory and settings are preserved.

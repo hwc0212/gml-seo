@@ -1,145 +1,251 @@
 # GML AI SEO
 
-零配置 AI SEO 插件。Gemini 以 SEO 大师的方式自动优化你的网站，替代 SEOPress / Yoast / Rank Math。
+**持续运行的 AI SEO 自动化 + 多语言翻译一体化插件。** 不是一次性工具 —— AI 定时扫描全站、自动重新优化、实时推送 Google/Bing，翻译时按目标语言用户搜索习惯做 transcreation 而非直译。
+
+专为 2025 AI Overviews / AI Mode / Helpful Content System（HCS）时代设计。
 
 ## 核心理念
 
-**SEO 小白也能做到 SEO 大师的效果。** 安装插件 → 填 API Key → 完成。AI 严格按照 Google 官方 SEO 指南自动处理一切。
+**SEO 不是发布时填一次就完事的事情 —— 它是一份持续的维护工作。**
 
-## 功能
+传统 SEO 插件只给你手动旋钮。这个插件不一样：
 
-### 🤖 AI SEO 大师（核心）
+- AI **每周**自动扫描全站，识别 5 类问题并按优先级排队重新优化
+- 内容发布/更新时**秒级**通知 Google Indexing API + IndexNow（Bing / Yandex / Seznam / Naver）
+- **BLUF (Bottom Line Up Front)** 机制让内容进入 AI Overviews 引用池
+- **Schema 智能识别**：AI 判断文章是 Article / HowTo / Recipe / Review / Event / VideoObject / Course 并输出对应 Rich Result
+- **多语言合一**：翻译共用 SEO 的 AI Key 和上下文，目标语言用户搜什么就生成什么（而不是机械翻译）
 
-Gemini 严格遵循 [Google Search Essentials](https://developers.google.com/search/docs/essentials) 和 [SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide) 的官方指导，对每个页面做全面深度分析：
+目标：**比一般 SEO 专员做得更好。**
 
-- **搜索意图分析** — 识别用户实际会搜索的查询词（不是关键词堆砌），分类为信息型/交易型/导航型/商业型
-- **标题优化** — 遵循 Google 指南："清晰、简洁、准确描述页面内容"。≤60 字符避免截断，自然融入搜索词，不堆砌关键词（Google 会重写堆砌的标题）
-- **描述优化** — 遵循 Google 指南："简洁的一两句话总结页面最相关的要点"。120-155 字符，作为搜索结果中的"电梯演讲"，包含价值主张和行动号召
-- **社交分享优化** — OG 标题/描述独立优化，更具情感驱动力，适合社交媒体信息流
-- **内容质量审计** — 按 Google 的"以人为本的内容"标准评估：是否有用、可靠、原创、易读、有专业性
-- **图片 alt 文本** — 遵循 Google 指南："描述图片与内容之间关系的简短文字"。自动检测缺失 alt 的图片，AI 生成描述性 alt 文本并自动填充
-- **内链分析** — 遵循 Google 指南："链接是连接用户和搜索引擎到网站其他部分的好方法"。建议使用描述性锚文本（不是"点击这里"）
-- **URL Slug 优化** — 遵循 Google 指南："在 URL 中包含对用户有用的词"。检测无意义的 ID 型 slug，建议描述性替代方案
-- **SEO 评分** — 0-100 分 + A+~F 等级，基于 Google 官方标准诚实评估
-- **FAQ 自动生成** — AI 基于文章内容生成 3-5 组 "People Also Ask" 风格 Q&A，自动输出 FAQPage schema（Google rich result）+ 可视化 FAQ section
-- **自动内链（Auto Internal Linking）** — AI 扫描站内已优化页面，为当前文章挑选 3-5 个语义最相关的内链目标，使用描述性锚文本，通过 `the_content` 过滤器注入（不修改数据库原文，随时可回滚）
+## 主要功能
 
-**Google 明确说不重要的东西，我们不浪费精力：**
-- ❌ meta keywords 标签（Google 明确不使用）
-- ❌ 标题标签的语义顺序（Google 说不影响排名）
-- ❌ 最低/最高字数要求（Google 说没有魔法字数）
-- ❌ 域名中的关键词（Google 说几乎没有排名效果）
+### 🗓 Health Monitor — 定时 SEO 扫描（核心差异化）
 
-### ⚡ 自动性能优化（Core Web Vitals）
+每周/每天/每月（可选）自动全站扫描，5 个信号决定优先级：
 
-Google 2021 年起将 Core Web Vitals（LCP、INP、CLS）作为排名信号。本插件自动执行所有安全的性能优化，无需配置，无需安装 Perfmatters / WP Rocket 等额外插件：
+| 信号 | 优先级 | 描述 |
+|---|---|---|
+| 从未分析 | 90 | 新内容首次优化 |
+| 缺失标题/描述 | 80 | 分析过但数据残缺 |
+| 内容变更 | 70 | Content hash 对比出不一致 |
+| SEO 分数 &lt; 60 | 60 | 上次低分，值得重做 |
+| 新鲜度超标 | 40 | 内容过于陈旧 |
 
-**WordPress 瘦身（自动）：**
-- 移除 Emoji 脚本和样式（~10KB）
-- 移除 Dashicons CSS（未登录用户，~46KB）
-- 移除 oEmbed 嵌入脚本（~6KB）
-- 移除 RSD、WLW、Shortlink、REST API、oEmbed 发现链接
-- 隐藏 WordPress 版本号
-- 禁用 XML-RPC（安全 + 性能）
-- 禁用自我 Pingback
-- 移除 Gutenberg 未使用的全局样式
+**类别感知的新鲜度阈值：**
+- 新闻 / 公告类：30 天
+- 教程 / guide 类：90 天
+- 普通文章：180 天
+- 页面（page）：365 天
 
-**JavaScript 优化（自动）：**
-- 非关键 JS 自动添加 `defer` 属性（消除渲染阻塞）
-- 安全跳过 jQuery 等关键脚本（不会破坏功能）
+可通过 `gml_seo_freshness_threshold_days` 过滤器自定义。
 
-**图片优化（自动）：**
-- 首屏前 2 张图片正常加载，其余自动 `loading="lazy"`
-- 自动补全缺失的 `width` / `height` 属性（防止 CLS 布局偏移）
-- 第一张内容图片自动添加 `fetchpriority="high"`（加速 LCP）
-- 特色图片自动 `<link rel="preload">`（提前加载 LCP 候选）
-- iframe（YouTube、Google Maps）自动 `loading="lazy"`
+命中阈值的页面自动进入队列，按优先级分批处理（每批 3 篇，间隔 5 分钟，避免 API 限流）。所有扫描运行都有日志，保留最近 50 条。
 
-**资源提示（自动）：**
-- 自动检测 Google Fonts → preconnect
-- GA/GTM → preconnect
-- Gravatar → dns-prefetch
+### 🚀 Real-time Indexing — 内容秒级推送
 
-**不做过度优化（遵循 Google 指南）：**
-- ❌ 不移除未使用的 CSS（可能破坏动态内容样式）
-- ❌ 不延迟所有 JS（可能破坏交互功能）
-- ❌ 不禁用 Google Fonts（可能影响品牌视觉）
-- ❌ 不内联关键 CSS（对有缓存的回访用户反而更慢）
+**IndexNow 协议（Bing / Yandex / Seznam / Naver）**
+- 自动生成 32 位验证密钥文件
+- 通过 rewrite rule + fallback 路由提供验证端点
+- Publish / update / delete / unpublish 事件触发，非阻塞（fire-and-forget）
 
-### 📊 完整 SEO 基础设施
+**Google Indexing API**
+- 粘贴服务账号 JSON 即用
+- 自动 JWT RS256 签名获取 access token
+- Transient 缓存 45 分钟
+- URL_UPDATED / URL_DELETED 事件类型
 
-无需任何配置，开箱即用：
+### 🤖 AI SEO Master Engine
 
-- **Meta 标签** — title、description、canonical、robots 自动输出到 `<head>`
-- **Open Graph** — og:title、og:description、og:image、og:type、og:url、og:locale
-- **Twitter Card** — summary_large_image 卡片，自动使用特色图片
-- **JSON-LD 结构化数据** — 自动生成：
-  - `WebSite` + SearchAction（首页）
-  - `Article`（文章）
-  - `WebPage`（页面）
-  - `Product` + Offer + AggregateRating（WooCommerce 产品）
-  - `BreadcrumbList`（所有页面）
-- **XML Sitemap** — `/sitemap.xml` 索引 + 按 post type 和 taxonomy 分子站点地图
-- **robots.txt** — 自动生成完整的虚拟 robots.txt：
-  - 屏蔽 wp-admin、wp-includes、wp-login、xmlrpc
-  - 屏蔽搜索结果、feed、trackback 等低价值页面
-  - 屏蔽 WooCommerce 购物车、结账、我的账户
-  - 屏蔽查询参数爬取（?s=、?p=、?replytocom=）
-  - 自动添加 Sitemap 地址
-- **Robots meta** — 搜索结果页、分页归档自动 noindex
+AI 严格遵循以下 Google 官方指南：
+- [Search Essentials](https://developers.google.com/search/docs/essentials)
+- [SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide)
+- [Succeeding in AI Search (May 2025)](https://developers.google.com/search/blog/2025/05/succeeding-in-ai-search)
 
-### 💉 代码注入
+每次分析产出：
 
-一站式管理所有追踪代码和自定义脚本：
+- **SEO 标题**（≤ 60 字符，关键词自然前置，不堆砌）
+- **Meta 描述**（120–155 字符，广告文案式写法）
+- **Open Graph 标题/描述**（独立优化，更具情感驱动力）
+- **焦点关键词**（主关键词 + 3-5 个次要关键词）
+- **搜索意图分类**（信息型 / 交易型 / 导航型 / 商业型）
+- **BLUF / TL;DR**（1-2 句直接答案，≤ 280 字符，供 AI Overviews 引用）
+- **SEO 评分**（0-100）+ **E-E-A-T 评分** + **AI-search 评分**
+- **SEO 审计**（按 Google "people-first content" 标准，至少 5 条具体 issue）
+- **内链建议**（使用描述性锚文本）
+- **图片 alt 文本**（AI 生成并自动填充）
+- **URL Slug 建议**（24 小时内的新文章自动应用）
+- **FAQ**（3-5 组 People Also Ask 风格 Q&A）
+- **Schema 类型识别**（Article / HowTo / Recipe / Review / Event / VideoObject / Course）
 
-- **Google Analytics 4** — 填入 G-XXXXXXX 即可，自动注入 gtag.js
-- **Google Tag Manager** — 填入 GTM-XXXXXXX，自动注入 head + body noscript
-- **Google AdSense** — 填入 ca-pub-XXXXXXX，自动注入广告脚本
-- **自定义代码** — 三个注入点：
-  - `<head>` 内（适合：Search Console 验证、Facebook Pixel、自定义 CSS）
-  - `<body>` 开头（适合：GTM noscript 备用、聊天插件）
-  - `</body>` 前（适合：统计脚本、延迟加载 JS）
+### 🔗 Auto Internal Linking — AI 自动内链
 
-### 🚀 批量优化
+Google 官方重点：**"Links help Google discover pages. Use descriptive anchor text."**
+
+- AI 扫描站内已优化页面，为每篇新文章挑 3-5 个语义最相关的目标
+- 生成**描述性锚文本**（绝不使用 "click here" / "read more" 这类通用词）
+- 通过 `the_content` 过滤器注入，**不修改数据库原文**，随时可回滚
+- 安全注入：跳过 `<a>`、`<h1-6>`、`<code>`、`<script>`、`<style>` 保护区
+- 每篇最多 5 条；AI 判断无合适匹配时返回空数组（不强制内链）
+- 帖子删除/下线时自动从候选索引移除
+- 编辑器级关闭开关
+
+### ❓ FAQ Schema — 最易获得的 Google Rich Result
+
+- AI 基于文章内容生成 3-5 组 Q&A（内容驱动，绝不编造）
+- 自动在文章末尾渲染可访问的 `<details>` 交互式 FAQ section
+- 自动输出合法的 `FAQPage` JSON-LD
+- 每篇文章级关闭开关（schema 与可见区块独立控制）
+
+### 📋 Smart Schema — AI 识别 + 输出
+
+**默认输出：**
+- `WebSite` + SearchAction（首页）
+- `Article`（文章）
+- `WebPage`（页面）
+- `Product` + Offer + AggregateRating（WooCommerce 产品）
+- `BreadcrumbList`（所有页面）
+- `Speakable`（BLUF 区块，辅助语音搜索 / AI Overviews）
+
+**AI 按内容类型动态扩展：**
+- `HowTo`（带 step 列表）
+- `Recipe`（带 ingredients + instructions）
+- `Review`（带 reviewRating）
+- `Event`（带 startDate + location）
+- `VideoObject`
+- `Course`
+
+严格遵循 Google "结构化数据必须匹配可见内容"的铁律 —— 只在页面实际包含对应元素时输出。
+
+### 🌐 Translation — 多语言一体化（v1.6+ 合并自 GML Translate）
+
+从 v1.6.0 起，GML Translate 全部功能已并入本插件。翻译和 SEO 共用同一个 AI Key 和引擎。
+
+- **动态 AI 翻译**（Gemini / DeepSeek）+ 基于 hash 的翻译记忆库
+- **异步队列** + cron 处理器，大站点也流畅
+- **可视化翻译编辑器**（搜索、分页、手动修正）
+- **术语表**（Glossary）强制翻译规则
+- **排除规则**（选择器 / 路径级）
+- **语言切换器**（下拉、内联、国旗、语言名可配）
+- **Nav Menu 切换器**（独立菜单项）
+- **语言自动检测** + cookie 记忆
+- **多语言 sitemap**（gml-sitemap.xml）+ **hreflang 标签**
+- **内容爬虫**（后台批量预翻译）
+- **Gettext filter**（翻译主题 / 插件内 i18n 字符串）
+- **Weglot 配置自动导入**
+
+**无缝迁移：** 如果原来装了独立 GML Translate，本插件激活时会自动停用它，数据库表（`wp_gml_index` / `wp_gml_queue`）和所有配置原样保留 —— **零重复翻译成本**。
+
+### ⚡ 性能优化（Core Web Vitals 自动）
+
+Google 2021 年起将 Core Web Vitals（LCP / INP / CLS）作为排名信号。内置全部安全的自动优化，无需 Perfmatters / WP Rocket：
+
+**WordPress 瘦身**
+- 移除 Emoji 脚本（~10KB）、Dashicons CSS（~46KB）、oEmbed（~6KB）
+- 移除 RSD / WLW / Shortlink / REST / oEmbed 发现链接
+- 隐藏 WP 版本号、禁用 XML-RPC、禁用自我 Pingback
+- 移除未使用的 Gutenberg 全局样式
+
+**JavaScript**
+- 非关键 JS 自动 `defer`
+- 安全跳过 jQuery 等关键脚本
+
+**图片**
+- 首屏前 2 张图正常加载，其余自动 `loading="lazy"`
+- 自动补全缺失 `width` / `height`（防止 CLS）
+- 第一张内容图 `fetchpriority="high"`（LCP 优化）
+- 特色图片 `<link rel="preload">`
+- iframe（YouTube / Google Maps）自动 lazy
+
+**资源提示**
+- 自动 preconnect Google Fonts / GA / GTM
+- Gravatar 等 dns-prefetch
+
+**不做过度优化**（遵循 Google 官方建议）
+- ❌ 不移除未使用的 CSS
+- ❌ 不延迟所有 JS
+- ❌ 不禁用 Google Fonts
+- ❌ 不内联关键 CSS
+
+### 💉 Code Injection
+
+一站式管理追踪代码：
+- **GA4** / **GTM** / **AdSense** 填 ID 即可
+- 自定义 `<head>` / `<body>` 开头 / `</body>` 前注入点
+
+### 🚀 Bulk Optimize
 
 - 一键分析所有未优化的已发布页面
-- 进度条实时显示，支持随时暂停
-- 每篇间隔 800ms，不会触发 API 限流
+- 强制模式：对已优化页面全量重跑（升级后回填新功能）
+- 进度条实时显示，随时暂停
+- 自动间隔防 API 限流
 
-### 📊 Dashboard
+### 📊 Dashboard + Automation
 
-- 优化覆盖率统计（已优化 / 总发布数）
-- 最近优化的页面列表 + AI 生成的标题预览
+- **Dashboard**：已优化 / 总数 / 覆盖率 / FAQ 数 / 自动内链数 / 候选索引大小
+- **Automation**：下次扫描倒计时、队列状态、扫描报告、彩色终端风格运行日志、手动扫描 / 处理按钮
+
+## 和传统 SEO 插件的区别
+
+| 维度 | 传统 SEO 插件（Yoast / Rank Math / SEOPress） | GML AI SEO |
+|---|---|---|
+| SEO 标题 / 描述 | 用户手动填 | AI 按 Google 指南自动生成 |
+| 关键词研究 | 用户自己做 | AI 识别真实搜索查询 |
+| 内容审计 | 基于规则的静态检查 | AI 按 Google E-E-A-T 深度分析 |
+| 图片 alt | 用户手动 | AI 自动生成并填充 |
+| 内链 | 无或 Pro 版 | AI 选目标 + 描述性锚文本 + 安全注入 |
+| FAQ Schema | 手动填 | AI 自动基于内容生成 |
+| 结构化数据 | 固定几种 | AI 智能识别 HowTo / Recipe / Review 等 |
+| AI Overviews 优化 | 无 | BLUF + Speakable schema |
+| 定时重新优化 | 无 | 每周全站扫描 + 优先级队列 |
+| 实时索引推送 | 无或需另装插件 | IndexNow + Google Indexing API 内置 |
+| Core Web Vitals | 另装 Perfmatters / WP Rocket | 内置自动优化 |
+| 多语言 | 另装 WPML / Polylang / Weglot | 内置（翻译 = transcreation，不是直译） |
+| 配置复杂度 | 几十个设置页 | 填 API Key 即可 |
 
 ## 安装
 
-1. 上传 `gml-seo` 到 `/wp-content/plugins/`
+1. 上传 `gml-seo` 目录到 `/wp-content/plugins/`（或 WP admin 上传 zip）
 2. 激活插件
-3. 进入 **GML AI SEO** → Settings
-4. 填入 Gemini API Key（从 [Google AI Studio](https://aistudio.google.com/apikey) 获取）
-5. 完成！
+3. 进入 **GML AI SEO → ⚙️ Settings**
+4. 选择 AI 引擎（Gemini 或 DeepSeek）并填入 API Key：
+   - Gemini：[Google AI Studio](https://aistudio.google.com/apikey)
+   - DeepSeek：[DeepSeek 开放平台](https://platform.deepseek.com/api_keys)（中国大陆推荐）
+5. 进入 **🤖 Automation** 确认定时扫描已安排
+6. （可选）配置 Google Indexing API：粘贴服务账号 JSON
 
-新发布的文章会自动被 AI 优化。已有文章可以通过「批量优化」一键处理。
+完成。新发布的文章会自动被 AI 优化；已有文章通过 **🚀 Bulk Optimize** 一键回填。
 
-## 与 SEOPress / Yoast / Rank Math 的区别
+## 升级路径
 
-| 功能 | 传统 SEO 插件 | GML AI SEO |
-|------|-------------|------------|
-| SEO 标题/描述 | 用户手动填写 | AI 按 Google 指南自动生成 |
-| 关键词研究 | 用户自己做 | AI 分析搜索意图，识别真实搜索查询 |
-| 内容审计 | 基于规则的简单检查 | AI 按 Google "以人为本"标准深度分析 |
-| 图片 alt 文本 | 用户手动填写 | AI 自动生成描述性 alt 并填充 |
-| 内链建议 | 无或需要 Pro 版 | AI 建议描述性锚文本（遵循 Google 指南） |
-| 性能优化 | 需要额外安装 Perfmatters/WP Rocket | 内置自动优化，零配置 |
-| 配置复杂度 | 几十个设置页面 | 只需填 API Key |
-| 遵循标准 | 自定义规则 | 严格遵循 Google 官方 SEO 指南 |
+### 从 v1.3.x 升级到 v1.4+
+1. 进 **Dashboard** → 点 **🔄 重建索引**
+2. 进 **Bulk Optimize** → 勾选 **强制重新分析** → 运行
+3. 旧文章会获得 FAQ + 自动内链
+
+### 从独立 GML Translate 升级到 v1.6+
+1. 先升级 GML AI SEO 到 1.6.1+
+2. 停用独立的 `gml-translate` 插件（插件会显示一键停用按钮）
+3. 数据自动保留，无需重新翻译
+4. 卸载独立插件（保留数据选项）
+
+## 钩子 / 过滤器
+
+| 名称 | 用途 |
+|---|---|
+| `gml_seo_freshness_threshold_days` | 自定义内容新鲜度阈值 |
+| `gml_seo_faq_heading` | 自定义 FAQ section 标题 |
 
 ## 要求
 
 - WordPress 6.0+
 - PHP 7.4+
-- Google Gemini API Key 或 DeepSeek API Key（二选一）
+- AI API Key（Gemini 或 DeepSeek，二选一）
 
 ## 版本
 
-1.6.0 — 完整更新日志见 [CHANGELOG.md](CHANGELOG.md)
+1.6.1 — 完整更新日志见 [CHANGELOG.md](CHANGELOG.md)
+
+## License
+
+GPLv2 or later
