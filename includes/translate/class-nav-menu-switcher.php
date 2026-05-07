@@ -17,6 +17,15 @@ class GML_Nav_Menu_Switcher {
     /** Custom menu-item object type identifier */
     const ITEM_TYPE = 'gml_language_switcher';
 
+    /**
+     * True when we've detected a nav-menu item switcher on the current page.
+     * Auto-position injection (class-language-switcher.php) checks this to
+     * avoid rendering a second switcher.
+     *
+     * @var bool
+     */
+    public static $rendered_in_menu = false;
+
     public function __construct() {
         // Admin: register meta box on Appearance → Menus
         add_action( 'admin_head-nav-menus.php', [ $this, 'add_meta_box' ] );

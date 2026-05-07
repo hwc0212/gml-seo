@@ -2,6 +2,45 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.7.0] - 2026-04-16
+
+### Added
+
+#### 🔑 统一 API Key —— 一次设置，到处生效
+- **SEO 和翻译共用同一个 AI Key 配置**。只需在 **GML AI SEO → Settings** 里填一次，翻译模块自动复用
+- Translate tab 顶部显示一个蓝色通知卡片：显示当前引擎（Gemini / DeepSeek）和配置状态，一键跳到 Settings
+- 引擎选择、Gemini Key、DeepSeek Key、DeepSeek Model、DeepSeek Base URL 这 5 个字段从 Translate 设置页彻底移除
+- `GML_Gemini_API::get_api_key()` 增加回退逻辑：优先用 Translate 自己的加密 key（旧数据），为空时自动回落到 GML SEO 的 key
+- `GML_Output_Buffer::should_skip()` 的 API Key 检测也同时认 Translate 和 SEO 两个来源，避免新安装时"已配置 key 却无法翻译"的误判
+
+#### 🎨 语言切换器样式自适应（核心 UX 改进）
+- **纯继承设计** — CSS 不再写死字号/字重/颜色/padding，默认全部 `font: inherit; color: inherit`
+- **CSS 自定义属性** — 提供 `--gml-gap`、`--gml-hover-opacity`、`--gml-panel-bg` 等变量，主题或用户可轻松覆盖
+- **JS 样式同步** — `initMenuStyleSync()` 升级为 `syncSwitcherToContext()`，能力扩展：
+  - 不仅限于 `<ul>/<ol>` 里的 `<li>`（菜单），还支持 header / footer / nav / aside / .widget 等语义容器
+  - 自动找附近的 `<a>` 链接，把它的 computed styles 复制到切换器（字体族、字号、字重、字体样式、颜色、行高、字距、text-transform、text-decoration）
+  - 镜像参考 `<li>` 的 padding / margin，保证垂直对齐
+  - 镜像参考 `<a>` 的 padding，保证点击面积一致
+  - 结束后给切换器加 `gml-style-synced` class，CSS 可用它做更精细的适配
+- **副作用**：切换器放在任何位置（header 导航、footer 链接、sidebar 小工具、shortcode）都会视觉上"消失"，看起来像原生菜单项
+
+#### 🔀 菜单切换器去重
+- `GML_Nav_Menu_Switcher::$rendered_in_menu` 静态标志：当 Appearance → Menus 里加了语言切换器菜单项时，自动抑制 `menu_before`/`menu_after` 的二次注入
+- 避免用户同时配置两种机制时出现重复切换器
+
+### Removed
+- Translate settings 页的 Translation Engine 下拉
+- Translate settings 页的 Gemini API Key 输入框
+- Translate settings 页的 DeepSeek API Key 输入框
+- Translate settings 页的 DeepSeek Model 输入框
+- Translate settings 页的 DeepSeek API Base URL 输入框
+
+（全部由 GML AI SEO → Settings 统一管理）
+
+### Compatibility
+- **向后兼容**：旧站点如果已经用 Translate 自己的加密 key 工作，继续有效
+- 新安装或升级后填一次 SEO Key 就够，无需再配置 Translate 的
+
 ## [1.6.1] - 2026-04-16
 
 ### Fixed

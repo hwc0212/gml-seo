@@ -32,7 +32,13 @@ class GML_Gemini_API {
     private $protected_terms = [];
 
     public function __construct() {
-        $this->engine          = get_option( 'gml_translation_engine', self::ENGINE_GEMINI );
+        // Engine preference: Translate's own setting wins if explicitly set,
+        // otherwise fall back to the unified GML SEO engine choice (v1.7+).
+        $translate_engine = get_option( 'gml_translation_engine', null );
+        if ( $translate_engine === null && class_exists( 'GML_SEO' ) ) {
+            $translate_engine = GML_SEO::opt( 'engine', self::ENGINE_GEMINI );
+        }
+        $this->engine          = $translate_engine ?: self::ENGINE_GEMINI;
         $this->api_key         = $this->get_api_key();
         $this->protected_terms = get_option( 'gml_protected_terms', [ 'GML', 'WordPress', 'WooCommerce', 'Gemini' ] );
 
@@ -51,14 +57,24 @@ class GML_Gemini_API {
             : 'gml_api_key_encrypted';
 
         $stored = get_option( $option );
-        if ( ! $stored ) {
-            // Fallback: try the other engine's key if same option name was used
-            if ( $this->engine === self::ENGINE_DEEPSEEK ) {
-                return null;
-            }
-            return null;
+        if ( $stored ) {
+            return self::decrypt_key( $stored );
         }
-        return self::decrypt_key( $stored );
+
+        // Fallback to the unified GML AI SEO API key — v1.7+ lets users
+        // configure the key once in Settings tab and both SEO and Translate
+        // share it. Translate's own encrypted option remains authoritative
+        // when set (keeps legacy installations working unchanged).
+        if ( class_exists( 'GML_SEO' ) ) {
+            $seo_key = $this->engine === self::ENGINE_DEEPSEEK
+                ? GML_SEO::opt( 'deepseek_key' )
+                : GML_SEO::opt( 'gemini_key' );
+            if ( ! empty( $seo_key ) ) {
+                return $seo_key;
+            }
+        }
+
+        return null;
     }
 
     /**

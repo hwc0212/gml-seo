@@ -192,6 +192,9 @@ class GML_Admin_Settings {
         $current_engine     = get_option('gml_translation_engine', 'gemini');
         $api_key_set        = !empty(get_option('gml_api_key_encrypted'));
         $deepseek_key_set   = !empty(get_option('gml_deepseek_api_key_encrypted'));
+        // Detect whether the unified GML SEO API key is configured
+        $seo_key_set = class_exists( 'GML_SEO' ) && GML_SEO::has_ai_key();
+        $seo_engine  = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'engine', 'gemini' ) : 'gemini';
         $wp_locale          = get_locale();
         $default_lang       = substr($wp_locale, 0, 2);
         $source_lang        = get_option('gml_source_lang', $default_lang);
@@ -203,68 +206,25 @@ class GML_Admin_Settings {
             <?php wp_nonce_field('gml_main_settings', 'gml_settings_nonce'); ?>
             <input type="hidden" name="gml_save_settings" value="1" />
 
+            <?php // ── Unified API key notice (v1.7+) ─────────────────────── ?>
+            <div style="background:#f0f7ff;border-left:4px solid #2563eb;padding:12px 16px;margin:18px 0;border-radius:4px;">
+                <strong>🔑 API Key 已与 SEO 共用</strong><br>
+                <span style="color:#555;font-size:13px;">
+                    翻译使用的 AI 引擎和 API Key 来自
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=gml-seo&tab=settings' ) ); ?>"><strong>GML AI SEO → Settings</strong></a>，
+                    只需配置一次。
+                    <?php if ( $seo_key_set ): ?>
+                        <span style="color:#00a32a;">✓ 当前已配置（引擎：<?php echo esc_html( $seo_engine === 'deepseek' ? 'DeepSeek' : 'Google Gemini' ); ?>）</span>
+                    <?php else: ?>
+                        <span style="color:#d63638;">⚠️ 尚未配置，请先去 Settings 填写 API Key</span>
+                    <?php endif; ?>
+                </span>
+            </div>
+
             <h2><?php _e('Main Configuration', 'gml-translate'); ?></h2>
             <table class="form-table">
-                <tr>
-                    <th><label for="gml_translation_engine"><?php _e('Translation Engine', 'gml-translate'); ?></label></th>
-                    <td>
-                        <select id="gml_translation_engine" name="gml_translation_engine" style="min-width:200px;">
-                            <option value="gemini" <?php selected($current_engine, 'gemini'); ?>>Google Gemini</option>
-                            <option value="deepseek" <?php selected($current_engine, 'deepseek'); ?>>DeepSeek</option>
-                        </select>
-                        <p class="description"><?php _e('Choose the AI engine for translation.', 'gml-translate'); ?></p>
-                    </td>
-                </tr>
-                <tr class="gml-engine-gemini" <?php echo $current_engine !== 'gemini' ? 'style="display:none;"' : ''; ?>>
-                    <th><label for="gml_api_key"><?php _e('Gemini API Key', 'gml-translate'); ?></label></th>
-                    <td>
-                        <input type="text" id="gml_api_key" name="gml_api_key" class="regular-text"
-                               value="<?php echo $api_key_set ? str_repeat('*', 32) : ''; ?>"
-                               placeholder="<?php echo $api_key_set ? '' : 'AIza...'; ?>" />
-                        <?php if ($api_key_set): ?>
-                            <p class="description" style="color:green;">✓ <?php _e('API Key is configured', 'gml-translate'); ?></p>
-                        <?php else: ?>
-                            <p class="description">
-                                <?php _e('Get your key from', 'gml-translate'); ?>
-                                <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
-                            </p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr class="gml-engine-deepseek" <?php echo $current_engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
-                    <th><label for="gml_deepseek_api_key"><?php _e('DeepSeek API Key', 'gml-translate'); ?></label></th>
-                    <td>
-                        <input type="text" id="gml_deepseek_api_key" name="gml_deepseek_api_key" class="regular-text"
-                               value="<?php echo $deepseek_key_set ? str_repeat('*', 32) : ''; ?>"
-                               placeholder="<?php echo $deepseek_key_set ? '' : 'sk-...'; ?>" />
-                        <?php if ($deepseek_key_set): ?>
-                            <p class="description" style="color:green;">✓ <?php _e('API Key is configured', 'gml-translate'); ?></p>
-                        <?php else: ?>
-                            <p class="description">
-                                <?php _e('Get your key from', 'gml-translate'); ?>
-                                <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a>.
-                            </p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr class="gml-engine-deepseek" <?php echo $current_engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
-                    <th><label for="gml_deepseek_model"><?php _e('DeepSeek Model', 'gml-translate'); ?></label></th>
-                    <td>
-                        <input type="text" id="gml_deepseek_model" name="gml_deepseek_model" class="regular-text"
-                               value="<?php echo esc_attr(get_option('gml_deepseek_model', 'deepseek-chat')); ?>"
-                               placeholder="deepseek-chat" />
-                        <p class="description"><?php _e('Default: deepseek-chat. You can also use deepseek-reasoner.', 'gml-translate'); ?></p>
-                    </td>
-                </tr>
-                <tr class="gml-engine-deepseek" <?php echo $current_engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
-                    <th><label for="gml_deepseek_api_base"><?php _e('API Base URL', 'gml-translate'); ?></label></th>
-                    <td>
-                        <input type="text" id="gml_deepseek_api_base" name="gml_deepseek_api_base" class="regular-text"
-                               value="<?php echo esc_attr(get_option('gml_deepseek_api_base', '')); ?>"
-                               placeholder="https://api.deepseek.com/v1" />
-                        <p class="description"><?php _e('Optional. Leave empty to use the default DeepSeek API endpoint. Useful for custom/proxy endpoints.', 'gml-translate'); ?></p>
-                    </td>
-                </tr>
+                <?php // Engine / API Key / DeepSeek model / base URL rows removed —
+                      // all unified under GML AI SEO → Settings tab (v1.7+) ?>
                 <tr>
                     <th><label for="gml_source_lang"><?php _e('Original Language', 'gml-translate'); ?></label></th>
                     <td>
@@ -1432,69 +1392,12 @@ class GML_Admin_Settings {
     }
 
     private function save_settings() {
-        // Save engine selection
-        $engine = sanitize_text_field($_POST['gml_translation_engine'] ?? 'gemini');
-        update_option('gml_translation_engine', $engine);
-
-        $api_key_updated = false;
-
-        if ($engine === 'deepseek') {
-            // Save DeepSeek model and API base FIRST (needed for key validation)
-            $model = sanitize_text_field($_POST['gml_deepseek_model'] ?? 'deepseek-chat');
-            if (!empty($model)) {
-                update_option('gml_deepseek_model', $model);
-            }
-            $api_base = esc_url_raw(trim($_POST['gml_deepseek_api_base'] ?? ''));
-            if (!empty($api_base)) {
-                update_option('gml_deepseek_api_base', $api_base);
-            } else {
-                delete_option('gml_deepseek_api_base');
-            }
-            // Save DeepSeek API key
-            if (!empty($_POST['gml_deepseek_api_key'])) {
-                $api_key = sanitize_text_field($_POST['gml_deepseek_api_key']);
-                if (strpos($api_key, '*') === false) {
-                    if (class_exists('GML_Gemini_API')) {
-                        $test = GML_Gemini_API::test_api_key($api_key, 'deepseek');
-                        if ($test['valid']) {
-                            GML_Gemini_API::save_api_key($api_key, 'deepseek');
-                            $api_key_updated = true;
-                            add_settings_error('gml_messages', 'gml_api_key_valid', __('DeepSeek API Key saved and verified!', 'gml-translate') . ' ' . $test['message'], 'success');
-                        } else {
-                            add_settings_error('gml_messages', 'gml_api_key_invalid', __('DeepSeek API Key validation failed:', 'gml-translate') . ' ' . $test['message'], 'error');
-                        }
-                    } else {
-                        update_option('gml_deepseek_api_key_encrypted', $api_key);
-                        $api_key_updated = true;
-                    }
-                }
-            }
-        } else {
-            // Save Gemini API key
-            if (!empty($_POST['gml_api_key'])) {
-                $api_key = sanitize_text_field($_POST['gml_api_key']);
-                if (strpos($api_key, '*') === false) {
-                    if (class_exists('GML_Gemini_API')) {
-                        $test = GML_Gemini_API::test_api_key($api_key, 'gemini');
-                        if ($test['valid']) {
-                            GML_Gemini_API::save_api_key($api_key, 'gemini');
-                            $api_key_updated = true;
-                            add_settings_error('gml_messages', 'gml_api_key_valid', __('API Key saved and verified!', 'gml-translate') . ' ' . $test['message'], 'success');
-                        } else {
-                            add_settings_error('gml_messages', 'gml_api_key_invalid', __('API Key validation failed:', 'gml-translate') . ' ' . $test['message'], 'error');
-                        }
-                    } else {
-                        update_option('gml_api_key_encrypted', $api_key);
-                        $api_key_updated = true;
-                    }
-                }
-            }
-        }
-
+        // Engine + API key are now managed by GML AI SEO Settings tab (v1.7+).
+        // Legacy gml_translation_engine / gml_api_key_encrypted options are
+        // still honored as a fallback in GML_Gemini_API::get_api_key(), so
+        // this save handler only touches the source language.
         update_option('gml_source_lang', sanitize_text_field($_POST['gml_source_lang'] ?? 'en'));
-        if (!$api_key_updated) {
-            add_settings_error('gml_messages', 'gml_settings_saved', __('Settings saved successfully!', 'gml-translate'), 'success');
-        }
+        add_settings_error('gml_messages', 'gml_settings_saved', __('Settings saved successfully!', 'gml-translate'), 'success');
     }
 
     private function save_switcher_settings() {

@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.6.1
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,12 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.7.0 =
+* Added: Unified API key — SEO and Translation now share the same Gemini/DeepSeek API configuration. Set it once in GML AI SEO → Settings, translation module inherits automatically.
+* Added: Language switcher style adaptation — CSS uses pure inheritance (font/color/size inherited from parent), JS auto-copies the computed styles of a sibling link so the switcher blends seamlessly into any nav menu, header, footer, or sidebar context.
+* Added: Menu switcher dedup — when a language switcher menu item is added via Appearance → Menus, the auto-position menu_before/menu_after injection is suppressed automatically.
+* Removed: Translation Engine dropdown and API key fields from Translation tab (managed under unified Settings).
+
 = 1.6.1 =
 * Fixed: Critical — site would white-screen when the standalone GML Translate plugin was still active after upgrading to 1.6.0. Bootstrap now detects the standalone plugin BEFORE defining any shared constants.
 * Added: Persistent admin notice with one-click "Deactivate standalone" button when both plugins coexist.
@@ -176,6 +182,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+Unified API key across SEO and Translation (set once in Settings, done). Language switcher now adapts to its surroundings automatically. Menu dedup.
 
 = 1.6.1 =
 Critical fix for v1.6.0 fatal error when standalone GML Translate is still active. Upgrade immediately if you installed v1.6.0.

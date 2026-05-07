@@ -560,8 +560,12 @@ class GML_Output_Buffer {
         if ( in_array( $pagenow, [ 'wp-login.php', 'wp-register.php' ], true ) ) {
             return true;
         }
-        // No API key
-        if ( empty( get_option( 'gml_api_key_encrypted' ) ) ) {
+        // No API key — check both Translate's own encrypted option AND
+        // the unified GML SEO key (v1.7+ shared config)
+        $has_translate_key = ! empty( get_option( 'gml_api_key_encrypted' ) )
+                          || ! empty( get_option( 'gml_deepseek_api_key_encrypted' ) );
+        $has_seo_key       = class_exists( 'GML_SEO' ) && GML_SEO::has_ai_key();
+        if ( ! $has_translate_key && ! $has_seo_key ) {
             return true;
         }
         // Translation not yet started by admin

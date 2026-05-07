@@ -90,66 +90,137 @@
         menu.style.setProperty('left', left + 'px', 'important');
     }
 
-    /* ── 2. Menu style sync ── */
+    /* ── 2. Menu / container style sync ──
+     *
+     * When the switcher is placed inside a <li> that's part of a UL/OL
+     * (nav menu, footer list, sidebar widget list), we copy the computed
+     * typography of a sibling link into the switcher so it blends in.
+     *
+     * Without this, the switcher uses pure CSS inheritance which only
+     * carries as far as direct ancestor rules apply. Many themes style
+     * their links via `.nav-menu a { ... }` selectors that don't match
+     * our <button>, leaving the switcher with default browser styles.
+     */
     function initMenuStyleSync() {
         document.querySelectorAll('.gml-language-switcher').forEach(function (switcher) {
-            var li = switcher.closest('li');
-            if (!li) return;
+            syncSwitcherToContext(switcher);
+        });
+    }
 
-            var list = li.parentElement;
-            if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) return;
+    /**
+     * Find the best "typography reference" element in the switcher's
+     * surroundings and copy its computed styles onto the switcher.
+     *
+     * Priority: sibling menu link > sibling link anywhere > closest
+     * header/footer/nav link > any link inside the closest meaningful
+     * wrapper (header / footer / aside / .widget).
+     *
+     * If no reference is found, rely on pure CSS inheritance — which
+     * is still correct in well-built themes.
+     */
+    function syncSwitcherToContext(switcher) {
+        var refLink = findReferenceLink(switcher);
+        if (!refLink) return;
 
-            var refLink = null;
-            var siblings = list.children;
-            for (var i = 0; i < siblings.length; i++) {
-                var sib = siblings[i];
-                if (sib === li || sib.tagName !== 'LI') continue;
-                var a = sib.querySelector('a');
-                if (a && !a.closest('.sub-menu') && !a.closest('.gml-language-switcher')) {
-                    refLink = a;
-                    break;
-                }
-            }
-            if (!refLink) return;
+        var cs = window.getComputedStyle(refLink);
 
-            var cs = window.getComputedStyle(refLink);
+        var btn = switcher.querySelector('.gml-dropdown-btn');
+        var btnLabel = btn ? btn.querySelector('.gml-lang-label') : null;
+        var targets = [switcher];
+        if (btn) targets.push(btn);
+        if (btnLabel) targets.push(btnLabel);
 
-            // Only sync the trigger button and its label, NOT dropdown items
-            var btn = switcher.querySelector('.gml-dropdown-btn');
-            var btnLabel = btn ? btn.querySelector('.gml-lang-label') : null;
-            var targets = [switcher];
-            if (btn) targets.push(btn);
-            if (btnLabel) targets.push(btnLabel);
+        switcher.querySelectorAll('.gml-lang-button').forEach(function (b) {
+            targets.push(b);
+            var l = b.querySelector('.gml-lang-label');
+            if (l) targets.push(l);
+        });
 
-            switcher.querySelectorAll('.gml-lang-button').forEach(function (b) {
-                targets.push(b);
-                var l = b.querySelector('.gml-lang-label');
-                if (l) targets.push(l);
+        var props = [
+            'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+            'color', 'lineHeight', 'letterSpacing',
+            'textTransform', 'textDecoration'
+        ];
+
+        targets.forEach(function (el) {
+            props.forEach(function (prop) {
+                el.style.setProperty(
+                    prop.replace(/([A-Z])/g, '-$1').toLowerCase(),
+                    cs[prop],
+                    'important'
+                );
             });
+        });
 
-            var props = ['fontFamily', 'fontSize', 'fontWeight', 'color',
-                         'lineHeight', 'letterSpacing', 'textTransform'];
-
-            targets.forEach(function (el) {
-                props.forEach(function (prop) {
-                    el.style.setProperty(
-                        prop.replace(/([A-Z])/g, '-$1').toLowerCase(),
-                        cs[prop],
-                        'important'
-                    );
-                });
-            });
-
+        // If in a menu, also mirror the sibling <li>'s padding/margin
+        var li = switcher.closest('li');
+        if (li) {
             var refLi = refLink.closest('li');
             if (refLi && refLi !== li) {
                 var liCs = window.getComputedStyle(refLi);
                 ['padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-                 'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft'
+                 'margin',  'marginTop',  'marginRight',  'marginBottom',  'marginLeft'
                 ].forEach(function (p) {
                     li.style[p] = liCs[p];
                 });
             }
-        });
+
+            // Mirror the link's padding onto the trigger so click target matches
+            if (btn) {
+                ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'
+                ].forEach(function (p) {
+                    btn.style.setProperty(
+                        p.replace(/([A-Z])/g, '-$1').toLowerCase(),
+                        cs[p],
+                        'important'
+                    );
+                });
+            }
+        }
+
+        switcher.classList.add('gml-style-synced');
+    }
+
+    /**
+     * Locate a reference link to inherit typography from.
+     * Tries sibling menu-item links first, then other links in the same
+     * structural wrapper (header / footer / nav / aside / widget).
+     */
+    function findReferenceLink(switcher) {
+        // 1) Sibling inside the same <ul>/<ol>
+        var li = switcher.closest('li');
+        if (li) {
+            var list = li.parentElement;
+            if (list && (list.tagName === 'UL' || list.tagName === 'OL')) {
+                var siblings = list.children;
+                for (var i = 0; i < siblings.length; i++) {
+                    var sib = siblings[i];
+                    if (sib === li || sib.tagName !== 'LI') continue;
+                    var a = sib.querySelector('a');
+                    if (a && !a.closest('.sub-menu') && !a.closest('.gml-language-switcher')) {
+                        return a;
+                    }
+                }
+            }
+        }
+
+        // 2) Walk up to a semantic wrapper and grab a link inside it
+        var wrappers = ['header', 'footer', 'nav', 'aside', '.widget', '.site-header', '.site-footer'];
+        for (var j = 0; j < wrappers.length; j++) {
+            var sel = wrappers[j];
+            var wrap = sel.charAt(0) === '.' ? switcher.closest(sel) : switcher.closest(sel);
+            if (wrap) {
+                var links = wrap.querySelectorAll('a');
+                for (var k = 0; k < links.length; k++) {
+                    var l = links[k];
+                    if (!l.closest('.gml-language-switcher') && !l.closest('.sub-menu')) {
+                        return l;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /* ── 3. Internal link rewriting ── */
