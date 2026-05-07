@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.7.1
+Stable tag: 1.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,10 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.7.2 =
+* Fixed: Critical regression introduced in v1.6.0 merge — translated pages were rendering with missing main content. Root cause: bootstrap init gated frontend modules (router, hreflang, output buffer, gettext filter, language switcher) behind gml_translation_enabled AND non-empty languages array. Standalone GML Translate never had this gate. Bootstrap now mirrors standalone's exact init logic: any API key configured → initialize all frontend modules. gml_translation_enabled remains as internal output-buffer gate only.
+* Reverted: The v1.7.1 fix_front_page_flags attempt — it was targeting the wrong root cause. Standalone never needed it.
+
 = 1.7.1 =
 * Fixed: Critical — translated language homepages (/ru/, /es/, /fr/, etc.) lost their hero / page-builder content, only showing a basic page layout. Root cause: WordPress's is_front_page() returned false when the URL had a language prefix, so Oxygen / Elementor / Divi / most themes skipped frontpage-specific rendering. Fix: Router now explicitly sets is_front_page=true on language root URLs via parse_query hook.
 
@@ -185,6 +189,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.7.2 =
+Critical regression fix: translated pages missing main content. Upgrade and clear cache.
 
 = 1.7.1 =
 Critical fix: translated homepages were missing hero sections because is_front_page() returned false on /ru/, /es/, /fr/, etc. Upgrade and clear cache.

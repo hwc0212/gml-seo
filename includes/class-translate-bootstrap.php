@@ -141,39 +141,77 @@ class GML_SEO_Translate_Bootstrap {
         if ( ! self::$loaded ) self::load();
         if ( ! self::$loaded ) return; // conflict with standalone — skip
 
-        // If no target languages configured, only load admin settings
-        // (so user can configure it) and skip the heavy stuff.
-        $languages = get_option( 'gml_languages', [] );
-        $has_langs = ! empty( $languages );
+        // Auto-upgrade DB schema on version change (standalone parity)
+        if ( class_exists( 'GML_Installer' ) ) {
+            $current = get_option( 'gml_db_version', '0' );
+            if ( defined( 'GML_Installer::DB_VERSION' ) || version_compare( $current, GML_Installer::DB_VERSION ?? '0', '<' ) ) {
+                $target = GML_Installer::DB_VERSION;
+                if ( version_compare( $current, $target, '<' ) ) {
+                    GML_Installer::activate();
+                }
+            }
+        }
 
-        // Admin settings (always)
+        // Cron context — only queue processor + crawler needed
+        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+            if ( self::has_any_api_key() ) {
+                if ( class_exists( 'GML_Queue_Processor' ) )      new GML_Queue_Processor();
+                if ( class_exists( 'GML_Content_Crawler' ) )      new GML_Content_Crawler();
+            }
+            return;
+        }
+
+        // Admin settings (always, even without configuration)
         if ( is_admin() ) {
-            if ( class_exists( 'GML_Admin_Settings' ) ) new GML_Admin_Settings();
-            if ( class_exists( 'GML_Translation_Editor' ) ) new GML_Translation_Editor();
+            if ( class_exists( 'GML_Admin_Settings' ) )       new GML_Admin_Settings();
+            if ( class_exists( 'GML_Translation_Editor' ) )   new GML_Translation_Editor();
         }
 
-        if ( ! $has_langs ) return;
+        // Nav menu switcher — needed in both admin (meta box) and frontend
+        if ( class_exists( 'GML_Nav_Menu_Switcher' ) )        new GML_Nav_Menu_Switcher();
 
-        // Translation enabled toggle
-        $enabled = (bool) get_option( 'gml_translation_enabled', false );
-        if ( ! $enabled ) return;
-
-        // Frontend components
-        if ( ! is_admin() ) {
-            if ( class_exists( 'GML_Output_Buffer' ) )        new GML_Output_Buffer();
-            if ( class_exists( 'GML_Language_Switcher' ) )    new GML_Language_Switcher();
-            if ( class_exists( 'GML_Nav_Menu_Switcher' ) )    new GML_Nav_Menu_Switcher();
-            if ( class_exists( 'GML_Translate_Hreflang' ) ) new GML_Translate_Hreflang();
-            if ( class_exists( 'GML_Translate_Router' ) )   new GML_Translate_Router();
-            if ( class_exists( 'GML_Sitemap' ) )              new GML_Sitemap();
-            if ( class_exists( 'GML_Language_Detector' ) )    new GML_Language_Detector();
-            if ( class_exists( 'GML_Gettext_Filter' ) )       new GML_Gettext_Filter();
+        // Frontend / other contexts need an API key configured.
+        // NOTE: gml_translation_enabled is NOT checked here — that option
+        // only gates the actual translation work inside output buffer's
+        // should_skip(). The router, hreflang, sitemap, switcher must run
+        // regardless so language-prefixed URLs are routable and the admin
+        // can enable translation without restarting anything.
+        if ( ! self::has_any_api_key() ) {
+            return;
         }
 
-        // Cron-driven components (both contexts)
-        if ( class_exists( 'GML_Queue_Processor' ) )      new GML_Queue_Processor();
-        if ( class_exists( 'GML_Content_Crawler' ) )      new GML_Content_Crawler();
-        if ( class_exists( 'GML_Translation_Plan_Manager' ) ) new GML_Translation_Plan_Manager();
+        // Output buffer (hybrid interceptor) — main translation engine
+        if ( class_exists( 'GML_Output_Buffer' ) )            new GML_Output_Buffer();
+
+        // Gettext filter (runtime i18n string translation)
+        // MUST be initialised BEFORE template loading so header/footer/sidebar
+        // strings are translated at PHP output time, not just in output buffer.
+        if ( class_exists( 'GML_Gettext_Filter' ) )           new GML_Gettext_Filter();
+
+        // SEO router — rewrite rules for /ru/, /fr/, etc. MUST run here so
+        // rewrite rules get registered on init before URL parsing.
+        if ( class_exists( 'GML_Translate_Router' ) )         new GML_Translate_Router();
+
+        // SEO hreflang — <link rel="alternate" hreflang> in <head>
+        if ( class_exists( 'GML_Translate_Hreflang' ) )       new GML_Translate_Hreflang();
+
+        // Queue processor + content crawler
+        if ( class_exists( 'GML_Queue_Processor' ) )          new GML_Queue_Processor();
+        if ( class_exists( 'GML_Content_Crawler' ) )          new GML_Content_Crawler();
+
+        // Language switcher
+        if ( class_exists( 'GML_Language_Switcher' ) )        new GML_Language_Switcher();
+
+        // Language detector (auto-redirect based on browser language)
+        if ( class_exists( 'GML_Language_Detector' ) )        new GML_Language_Detector();
+
+        // Multilingual sitemap
+        if ( class_exists( 'GML_Sitemap' ) )                  new GML_Sitemap();
+
+        // Translation plan manager (admin async planning)
+        if ( is_admin() && class_exists( 'GML_Translation_Plan_Manager' ) ) {
+            new GML_Translation_Plan_Manager();
+        }
 
         // Register language switcher widget
         add_action( 'widgets_init', function() {
@@ -181,6 +219,17 @@ class GML_SEO_Translate_Bootstrap {
                 register_widget( 'GML_Language_Switcher_Widget' );
             }
         } );
+    }
+
+    /**
+     * Check whether any AI API key is configured (Translate's own encrypted
+     * key OR the unified GML SEO key).
+     */
+    private static function has_any_api_key() {
+        if ( ! empty( get_option( 'gml_api_key_encrypted' ) ) ) return true;
+        if ( ! empty( get_option( 'gml_deepseek_api_key_encrypted' ) ) ) return true;
+        if ( class_exists( 'GML_SEO' ) && GML_SEO::has_ai_key() ) return true;
+        return false;
     }
 
     /**

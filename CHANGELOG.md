@@ -2,6 +2,26 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.7.2] - 2026-04-16
+
+### Fixed
+- 🐛 **严重回归 — 翻译页面丢失主内容** — 我在 v1.6.0 合并 GML Translate 时写错了 bootstrap 的 init 门控逻辑，独立版本原本一切正常
+  - 独立 GML Translate 的做法：只要配了 API Key 就注册所有前端模块（Output Buffer、SEO Router、Hreflang、Sitemap、Gettext Filter、Language Switcher、Language Detector）。`gml_translation_enabled` option 只作为 Output Buffer 内部 `should_skip()` 的开关
+  - 我的错误做法：把 `gml_translation_enabled` 和 `has_langs` 当成 gate，没通过就**跳过所有前端模块**。结果：
+    - Router 不注册 → 语言 URL 路由不工作
+    - Hreflang 不输出
+    - Gettext Filter 不运行 → 主题字符串不翻译
+    - 极端情况下 Output Buffer 也不跑 → 翻译页渲染出各种残缺形态
+  - 修复：Bootstrap init 改为 1:1 镜像独立版的逻辑
+    - 只要 API Key 存在（Translate 自己的加密 key 或 SEO 的共享 key），所有前端模块都初始化
+    - 去掉"语言数组非空"和"translation_enabled"的门控
+    - 新增 DOING_CRON 分支（只加载 Queue Processor + Content Crawler，减少第三方插件副作用）
+    - 新增 DB 版本自动升级检测（独立版本有但合并时漏掉）
+- 🔄 **撤销 v1.7.1 的 `fix_front_page_flags`** — 那个修复方向错了（独立版本没这个 hook 也一切正常），根本原因不在 `is_front_page`，而是上面说的 router 根本没被初始化
+
+### Important
+**升级到 1.7.2 后必须清缓存**（Translation → Clear Cache + 任何缓存插件 + 浏览器 hard reload）。翻译页面应该立即完全恢复。
+
 ## [1.7.1] - 2026-04-16
 
 ### Fixed
