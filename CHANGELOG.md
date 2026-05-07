@@ -2,6 +2,18 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.7.1] - 2026-04-16
+
+### Fixed
+- 🐛 **翻译版首页主内容（hero/page builder section）丢失** — `/ru/`、`/es/`、`/fr/`、`/de/`、`/it/` 等语言首页打开后，header 和 footer 正常翻译，但中间 Oxygen Builder / Elementor / Divi 渲染的 hero 区块和首页专属内容整个消失，只剩一个简单的联系方式块
+  - 根因：路由把 `/ru/` 映射成 `page_id=front_page_id` 让 WordPress 服务首页内容，但 `WP_Query::parse_query()` 只会根据 `REQUEST_URI == '/'` 来设置 `is_front_page = true`。`REQUEST_URI` 是 `/ru/` 时，`is_front_page()` 返回 `false`。页面构建器（Oxygen、Elementor、Divi、几乎所有主流主题）都依赖 `is_front_page()` 来决定是否渲染"首页模板"，条件为假时就跳过 hero，只渲染"普通页面"
+  - 修复：`GML_Translate_Router` 新增 `fix_front_page_flags()`，挂 `parse_query` 优先级 99，在语言首页 URL 上主动把 `$wp_query->is_front_page = true`
+  - 同时处理"最新文章"首页模式（`show_on_front != page`）：置 `is_home=true, is_front_page=true, is_page=false, is_singular=false`
+  - 只针对语言根路径（`/ru/`、`/ru`）生效，子页面 `/ru/about/` 不受影响
+
+### Important
+此 bug 是 v1.6.0 合并时带进来的（独立 GML Translate 之前也可能有同样问题，但没被注意到）。升级到 1.7.1 后清一次页面缓存（Translation → Clear Cache 或任何缓存插件），翻译首页就会恢复完整。
+
 ## [1.7.0] - 2026-04-16
 
 ### Added

@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.7.1 =
+* Fixed: Critical — translated language homepages (/ru/, /es/, /fr/, etc.) lost their hero / page-builder content, only showing a basic page layout. Root cause: WordPress's is_front_page() returned false when the URL had a language prefix, so Oxygen / Elementor / Divi / most themes skipped frontpage-specific rendering. Fix: Router now explicitly sets is_front_page=true on language root URLs via parse_query hook.
+
 = 1.7.0 =
 * Added: Unified API key — SEO and Translation now share the same Gemini/DeepSeek API configuration. Set it once in GML AI SEO → Settings, translation module inherits automatically.
 * Added: Language switcher style adaptation — CSS uses pure inheritance (font/color/size inherited from parent), JS auto-copies the computed styles of a sibling link so the switcher blends seamlessly into any nav menu, header, footer, or sidebar context.
@@ -182,6 +185,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.7.1 =
+Critical fix: translated homepages were missing hero sections because is_front_page() returned false on /ru/, /es/, /fr/, etc. Upgrade and clear cache.
 
 = 1.7.0 =
 Unified API key across SEO and Translation (set once in Settings, done). Language switcher now adapts to its surroundings automatically. Menu dedup.

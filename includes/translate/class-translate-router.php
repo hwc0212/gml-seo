@@ -39,6 +39,12 @@ class GML_Translate_Router {
         add_filter( 'old_slug_redirect_url', [ $this, 'prevent_canonical_redirect' ], 10, 1 );
         // Ensure WordPress 'wp_redirect' preserves language prefix
         add_filter( 'wp_redirect', [ $this, 'preserve_lang_in_redirect' ], 10, 2 );
+        // After WP_Query runs, fix is_front_page / is_home flags when serving
+        // a translated language homepage — page builders (Oxygen, Elementor,
+        // Divi, etc.) rely on these conditional tags to render the correct
+        // template. Without this fix, /ru/ would be detected as a regular
+        // page instead of the site's front page and hero sections disappear.
+        add_action( 'parse_query', [ $this, 'fix_front_page_flags' ], 99 );
     }
 
     // ── Rewrite rules ─────────────────────────────────────────────────────────
@@ -190,6 +196,65 @@ class GML_Translate_Router {
     }
 
 
+
+    /**
+     * Fix WP_Query's is_front_page / is_home flags for language-prefixed homepages.
+     *
+     * When /ru/ is served, we route it to page_id=X (the configured front page).
+     * WordPress's WP_Query::parse_query() sets is_page=true but not is_front_page
+     * because it validates against REQUEST_URI which contains /ru/ — not the
+     * expected / for the front page.
+     *
+     * Page builders (Oxygen, Elementor, Divi, Astra, GeneratePress, etc.) all
+     * rely on is_front_page() to render frontpage-specific templates. Without
+     * this fix, translated homepages render a "regular page" layout missing
+     * the hero section and other frontpage-only widgets.
+     *
+     * Symptom: /fr/ shows footer + contact block but no hero; / shows full page.
+     */
+    public function fix_front_page_flags( $query ) {
+        if ( ! $query->is_main_query() ) {
+            return;
+        }
+        if ( is_admin() ) {
+            return;
+        }
+
+        // Only act when current URL has a language prefix
+        $path = strtok( $_SERVER['REQUEST_URI'] ?? '/', '?' );
+        if ( empty( $this->languages ) ) {
+            return;
+        }
+        $pat = implode( '|', array_map( 'preg_quote', $this->languages ) );
+        if ( ! preg_match( '#^/(' . $pat . ')/?$#', $path ) ) {
+            // Not a language-ROOT URL (e.g. /ru/some-page/ — those are pages, not front)
+            return;
+        }
+
+        // Confirm this is serving the configured front page
+        if ( get_option( 'show_on_front' ) !== 'page' ) {
+            // "Latest posts" front — set is_home instead
+            $query->is_home = true;
+            $query->is_front_page = true;
+            $query->is_page = false;
+            $query->is_singular = false;
+            return;
+        }
+
+        $front_id = (int) get_option( 'page_on_front' );
+        if ( ! $front_id ) {
+            return;
+        }
+
+        $queried = $query->get( 'page_id' );
+        if ( (int) $queried !== $front_id ) {
+            return;
+        }
+
+        // Flag as front page for all conditional template checks
+        $query->is_front_page = true;
+        $query->is_home       = false; // "static front + separate posts page" mode
+    }
 
     /**
      * Prevent WordPress from redirecting /ru/about/ → /about/ (canonical redirect).
