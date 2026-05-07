@@ -4,15 +4,24 @@ Tags: seo, ai, sitemap, meta tags, performance
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Zero-config AI-powered SEO & Performance. Gemini / DeepSeek auto-optimizes titles, descriptions, schema, sitemaps, and page speed.
+Zero-config AI SEO automation. Scheduled weekly audits, real-time indexing notifications, AI Overviews optimization. Built for 2025 Google search.
 
 == Description ==
 
-GML AI SEO lets anyone achieve expert-level SEO without any SEO knowledge. Install the plugin, add your API key, and AI handles everything — strictly following Google's official SEO guidelines.
+GML AI SEO is a scheduled-worker SEO automation plugin — not a one-off tool. AI audits your entire site weekly, detects content drift and stale pages, re-optimizes what needs attention, and notifies Google + Bing in real time via IndexNow and Google Indexing API. Follows Google's 2025 guidance for AI Overviews, AI Mode, and the Helpful Content System (HCS) now baked into core ranking.
+
+= What makes it different =
+
+Traditional SEO plugins give you manual knobs to turn. This plugin does the SEO work itself, continuously:
+
+* **Scheduled weekly audit** scans every post, scores its health across 5 signals (never analyzed, missing data, content drift, low score, staleness), and queues at-risk pages for re-optimization
+* **Real-time indexing** pushes publish/update/delete events to Bing, Yandex, Seznam, Naver (via IndexNow — zero config) and to Google (via Indexing API with your service account)
+* **AI Overviews ready** — generates BLUF (Bottom Line Up Front) summaries marked with Speakable schema so your content has a better chance of being quoted in AI search results
+* **Smart schema detection** — AI identifies whether a page is an Article, HowTo, Recipe, Review, Event, Course, or VideoObject and outputs the matching structured data
 
 = AI SEO Master Engine =
 
@@ -112,6 +121,15 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.5.0 =
+* Added: Scheduled SEO Health Monitor — weekly full-site audit with 5-signal priority queue (never analyzed, missing data, content drift, low score, staleness). Category-aware freshness thresholds.
+* Added: Real-time indexing via IndexNow (Bing/Yandex/Seznam/Naver, zero config) and Google Indexing API (service account).
+* Added: BLUF/TL;DR auto-generation with Speakable schema for AI Overviews citation.
+* Added: Smart schema detection — AI picks Article / HowTo / Recipe / Review / Event / VideoObject / Course based on content.
+* Added: E-E-A-T score and AI-search score as separate sub-scores.
+* Added: Automation dashboard tab with run log, queue status, manual triggers.
+* Changed: AI prompt updated with Google's May 2025 "Succeeding in AI Search" guidance and HCS-as-core-ranking.
+
 = 1.4.1 =
 * Fixed: Auto-link count stays at 0 after bulk optimize — rebuilt the candidate index seeding so posts processed early in the run now have candidates to link to; added Dashboard "Rebuild Index" button for one-click repair.
 * Fixed: Anchor-text verbatim check now uses full post content instead of truncated excerpt.
@@ -148,6 +166,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Major upgrade: SEO now runs as a scheduled worker. Weekly full-site audit, real-time indexing, AI Overviews optimization. Visit the new Automation tab after upgrade.
 
 = 1.4.1 =
 Fixes auto-link count stuck at 0 after bulk optimize. After upgrading, click "Rebuild Index" on Dashboard then re-run Bulk with force mode.

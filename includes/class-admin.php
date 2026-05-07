@@ -36,6 +36,9 @@ class GML_SEO_Admin {
         $o['footer_code']     = $in['footer_code'] ?? '';
         $o['site_name']       = sanitize_text_field( $in['site_name'] ?? get_bloginfo( 'name' ) );
         $o['separator']       = sanitize_text_field( $in['separator'] ?? '-' );
+        $o['audit_frequency'] = in_array( $in['audit_frequency'] ?? '', [ 'weekly', 'daily', 'monthly', 'disabled' ] ) ? $in['audit_frequency'] : 'weekly';
+        $o['indexnow_enabled']       = ! empty( $in['indexnow_enabled'] ) ? 1 : 0;
+        $o['google_service_account'] = trim( $in['google_service_account'] ?? '' );
         return $o;
     }
 
@@ -47,6 +50,7 @@ class GML_SEO_Admin {
             <h1>🤖 GML AI SEO</h1>
             <nav class="nav-tab-wrapper">
                 <a href="?page=gml-seo&tab=settings" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">⚙️ Settings</a>
+                <a href="?page=gml-seo&tab=automation" class="nav-tab <?php echo $tab === 'automation' ? 'nav-tab-active' : ''; ?>">🤖 Automation</a>
                 <a href="?page=gml-seo&tab=performance" class="nav-tab <?php echo $tab === 'performance' ? 'nav-tab-active' : ''; ?>">⚡ Performance</a>
                 <a href="?page=gml-seo&tab=code" class="nav-tab <?php echo $tab === 'code' ? 'nav-tab-active' : ''; ?>">💉 Code Injection</a>
                 <a href="?page=gml-seo&tab=bulk" class="nav-tab <?php echo $tab === 'bulk' ? 'nav-tab-active' : ''; ?>">🚀 Bulk Optimize</a>
@@ -55,6 +59,7 @@ class GML_SEO_Admin {
             <div style="margin-top:20px;">
             <?php
             switch ( $tab ) {
+                case 'automation': $this->tab_automation( $s ); break;
                 case 'performance': $this->tab_performance(); break;
                 case 'code':      $this->tab_code( $s ); break;
                 case 'bulk':      $this->tab_bulk(); break;
@@ -160,6 +165,187 @@ class GML_SEO_Admin {
         <?php
     }
 
+    // ── Automation Tab (Scheduled Audit + Indexing) ──────────────────
+
+    private function tab_automation( $s ) {
+        $freq     = $s['audit_frequency'] ?? 'weekly';
+        $next_run = GML_SEO_Health_Monitor::get_next_run();
+        $report   = GML_SEO_Health_Monitor::get_report();
+        $queue    = GML_SEO_Health_Monitor::get_queue();
+        $log      = GML_SEO_Health_Monitor::get_log( 10 );
+        $idx_key  = GML_SEO_Indexing::get_indexnow_key();
+        ?>
+        <style>
+        .gml-auto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0;}
+        .gml-auto-card{background:#fff;padding:18px;border:1px solid #ccd0d4;border-radius:6px;}
+        .gml-auto-card h4{margin:0 0 8px;font-size:13px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+        .gml-auto-card .v{font-size:26px;font-weight:700;line-height:1.2;}
+        .gml-auto-card .s{color:#6b7280;font-size:13px;margin-top:4px;}
+        .gml-log{background:#1e1e1e;color:#a0a0a0;font-family:monospace;font-size:12px;padding:12px;border-radius:4px;max-height:280px;overflow-y:auto;line-height:1.6;}
+        .gml-log time{color:#6ee7b7;margin-right:8px;}
+        </style>
+
+        <h2>🤖 自动化 SEO 引擎</h2>
+        <p>插件会定时全站扫描，自动识别需要重新优化的内容并排队处理。遵循 Google 2025 最新指南：停滞内容是 HCS 核心算法的负面信号，特别是时效性敏感的话题。</p>
+
+        <div class="gml-auto-grid">
+            <div class="gml-auto-card">
+                <h4>🗓 下次自动扫描</h4>
+                <div class="v" style="color:#2563eb;font-size:16px;">
+                    <?php echo $next_run ? esc_html( human_time_diff( time(), $next_run ) . ' 后' ) : '未安排'; ?>
+                </div>
+                <div class="s"><?php echo $next_run ? esc_html( wp_date( 'Y-m-d H:i', $next_run ) ) : ''; ?></div>
+            </div>
+            <div class="gml-auto-card">
+                <h4>📋 待重新优化队列</h4>
+                <div class="v" style="color:<?php echo count( $queue ) > 0 ? '#dba617' : '#00a32a'; ?>;"><?php echo count( $queue ); ?></div>
+                <div class="s">按优先级自动处理</div>
+            </div>
+            <div class="gml-auto-card">
+                <h4>📊 最近扫描</h4>
+                <div class="v" style="color:#0891b2;font-size:16px;">
+                    <?php echo ! empty( $report['last_run'] ) ? esc_html( human_time_diff( strtotime( $report['last_run'] ), time() ) . ' 前' ) : '尚未运行'; ?>
+                </div>
+                <div class="s"><?php echo ! empty( $report['stats']['total'] ) ? '扫描 ' . (int) $report['stats']['total'] . ' 篇' : ''; ?></div>
+            </div>
+            <div class="gml-auto-card">
+                <h4>🚀 搜索引擎通知</h4>
+                <div class="v" style="color:#6f42c1;font-size:14px;">
+                    IndexNow <?php echo GML_SEO::opt( 'indexnow_enabled', 1 ) ? '✓' : '✗'; ?><br>
+                    Google API <?php echo GML_SEO::opt( 'google_service_account' ) ? '✓' : '✗'; ?>
+                </div>
+                <div class="s">发布/更新即推送</div>
+            </div>
+        </div>
+
+        <form method="post" action="options.php">
+            <?php settings_fields( 'gml_seo_group' ); ?>
+            <?php
+            // Preserve all other settings
+            $preserve = [ 'engine', 'gemini_key', 'model', 'deepseek_key', 'deepseek_model',
+                'deepseek_base_url', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
+                'footer_code', 'site_name', 'separator' ];
+            foreach ( $preserve as $k ) {
+                echo '<input type="hidden" name="gml_seo[' . esc_attr( $k ) . ']" value="' . esc_attr( $s[ $k ] ?? '' ) . '">';
+            }
+            ?>
+
+            <h3>🗓 定时健康扫描</h3>
+            <table class="form-table">
+                <tr>
+                    <th>扫描频率</th>
+                    <td>
+                        <select name="gml_seo[audit_frequency]">
+                            <option value="weekly" <?php selected( $freq, 'weekly' ); ?>>每周一次（推荐）</option>
+                            <option value="daily" <?php selected( $freq, 'daily' ); ?>>每天一次（活跃站点）</option>
+                            <option value="monthly" <?php selected( $freq, 'monthly' ); ?>>每月一次</option>
+                            <option value="disabled" <?php selected( $freq, 'disabled' ); ?>>禁用自动扫描</option>
+                        </select>
+                        <p class="description">扫描逻辑：<br>
+                            ▸ 从未分析 → 优先级 90<br>
+                            ▸ 缺失标题/描述 → 优先级 80<br>
+                            ▸ 内容变更但未重新分析 → 优先级 70<br>
+                            ▸ SEO 分数 &lt; 60 → 优先级 60<br>
+                            ▸ 超过新鲜度阈值（新闻 30 天、教程 90 天、普通 180 天、页面 365 天）→ 优先级 40
+                        </p>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>🚀 实时索引通知</h3>
+            <table class="form-table">
+                <tr>
+                    <th>IndexNow 协议</th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="gml_seo[indexnow_enabled]" value="1" <?php checked( ! empty( $s['indexnow_enabled'] ) || ! isset( $s['indexnow_enabled'] ) ); ?>>
+                            启用 IndexNow（Bing、Yandex、Seznam、Naver 免配置支持）
+                        </label>
+                        <p class="description">
+                            插件已自动生成验证密钥：<code><?php echo esc_html( $idx_key ); ?></code><br>
+                            密钥文件 URL：<a href="<?php echo esc_url( home_url( '/' . $idx_key . '.txt' ) ); ?>" target="_blank"><?php echo esc_html( home_url( '/' . $idx_key . '.txt' ) ); ?></a><br>
+                            无需任何操作，内容发布/更新时会自动推送给支持的搜索引擎。
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Google Indexing API</th>
+                    <td>
+                        <textarea name="gml_seo[google_service_account]" rows="6" class="large-text code" placeholder='{"type":"service_account","project_id":"...","private_key":"...",...}'><?php echo esc_textarea( $s['google_service_account'] ?? '' ); ?></textarea>
+                        <p class="description">
+                            粘贴 Google Cloud 服务账号 JSON。配置步骤：
+                            <a href="https://developers.google.com/search/apis/indexing-api/v3/prereqs" target="_blank">创建服务账号</a> →
+                            添加 <code>Indexing API</code> 权限 →
+                            在 <a href="https://search.google.com/search-console/users" target="_blank">Search Console</a> 里把该服务账号邮箱加为 <strong>Owner</strong>。<br>
+                            留空则禁用。配置后，内容变更会通过官方 API 通知 Google，大幅加快收录。
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button( '保存自动化设置' ); ?>
+        </form>
+
+        <h3>⚙️ 手动控制</h3>
+        <p>
+            <button type="button" id="gml-audit-now" class="button button-primary">🔍 立即扫描全站</button>
+            <button type="button" id="gml-process-now" class="button" <?php echo empty( $queue ) ? 'disabled' : ''; ?>>⚡ 立即处理队列</button>
+        </p>
+
+        <?php if ( ! empty( $report['stats'] ) ) : $st = $report['stats']; ?>
+        <h3>📊 上次扫描报告</h3>
+        <table class="widefat" style="max-width:700px;">
+            <tbody>
+                <tr><td>总扫描页面</td><td><strong><?php echo (int) $st['total']; ?></strong></td></tr>
+                <tr><td>🟢 健康</td><td><?php echo (int) $st['healthy']; ?></td></tr>
+                <tr><td>⚪ 从未分析</td><td><?php echo (int) $st['never']; ?></td></tr>
+                <tr><td>⚠️ 缺失 SEO 数据</td><td><?php echo (int) $st['missing']; ?></td></tr>
+                <tr><td>🔄 内容变更</td><td><?php echo (int) $st['changed']; ?></td></tr>
+                <tr><td>📉 低分 (&lt;60)</td><td><?php echo (int) $st['low_score']; ?></td></tr>
+                <tr><td>⏰ 内容过时</td><td><?php echo (int) $st['stale']; ?></td></tr>
+                <tr><td><strong>队列总数</strong></td><td><strong><?php echo (int) $st['queued']; ?></strong></td></tr>
+            </tbody>
+        </table>
+        <?php endif; ?>
+
+        <h3>📝 运行日志</h3>
+        <div class="gml-log">
+            <?php if ( empty( $log ) ) : ?>
+                <em style="color:#666;">暂无日志。扫描运行后会显示详细记录。</em>
+            <?php else : foreach ( $log as $entry ) : ?>
+                <div><time><?php echo esc_html( $entry['time'] ); ?></time><?php echo esc_html( $entry['message'] ); ?></div>
+            <?php endforeach; endif; ?>
+        </div>
+
+        <script>
+        (function(){
+            var nonce = '<?php echo wp_create_nonce( 'gml_seo_admin' ); ?>';
+            document.getElementById('gml-audit-now').addEventListener('click', function(){
+                var btn = this;
+                btn.disabled = true; btn.textContent = '⏳ 扫描中...';
+                var fd = new FormData();
+                fd.append('action', 'gml_seo_run_audit');
+                fd.append('_wpnonce', nonce);
+                fetch(ajaxurl, { method:'POST', body:fd }).then(r=>r.json()).then(d=>{
+                    if (d.success) { alert('✅ 扫描完成！'); window.location.reload(); }
+                    else { alert('❌ ' + (d.data || '扫描失败')); btn.disabled = false; btn.textContent = '🔍 立即扫描全站'; }
+                });
+            });
+            var pbtn = document.getElementById('gml-process-now');
+            if (pbtn) pbtn.addEventListener('click', function(){
+                this.disabled = true; this.textContent = '⏳ 处理中...';
+                var fd = new FormData();
+                fd.append('action', 'gml_seo_process_now');
+                fd.append('_wpnonce', nonce);
+                fetch(ajaxurl, { method:'POST', body:fd }).then(r=>r.json()).then(d=>{
+                    if (d.success) { alert('✅ 本批处理完成，剩余 ' + d.data.remaining + ' 项'); window.location.reload(); }
+                    else { alert('❌ ' + (d.data || '处理失败')); window.location.reload(); }
+                });
+            });
+        })();
+        </script>
+        <?php
+    }
+
     // ── Performance Tab ──────────────────────────────────────────────
 
     private function tab_performance() {
@@ -240,6 +426,9 @@ class GML_SEO_Admin {
             <input type="hidden" name="gml_seo[adsense_id]" value="<?php echo esc_attr( $s['adsense_id'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[site_name]" value="<?php echo esc_attr( $s['site_name'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[separator]" value="<?php echo esc_attr( $s['separator'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[audit_frequency]" value="<?php echo esc_attr( $s['audit_frequency'] ?? 'weekly' ); ?>">
+            <input type="hidden" name="gml_seo[indexnow_enabled]" value="<?php echo (int) ( $s['indexnow_enabled'] ?? 1 ); ?>">
+            <input type="hidden" name="gml_seo[google_service_account]" value="<?php echo esc_attr( $s['google_service_account'] ?? '' ); ?>">
 
             <h2>自定义代码注入</h2>
             <p>在页面的不同位置插入自定义代码（验证码、像素追踪、自定义 CSS/JS 等）。</p>

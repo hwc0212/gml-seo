@@ -29,8 +29,23 @@ class GML_SEO_Schema {
             $id   = get_queried_object_id();
             $post = get_post( $id );
 
+            // Determine schema type: AI-detected takes precedence over defaults
+            $detected_type = get_post_meta( $id, '_gml_seo_schema_type', true );
+
             if ( $post->post_type === 'product' && function_exists( 'wc_get_product' ) ) {
                 $schemas[] = $this->product_schema( $id );
+            } elseif ( $detected_type && $detected_type !== 'Article' && $detected_type !== 'WebPage' ) {
+                // Use specialized schema based on AI detection
+                $extra = get_post_meta( $id, '_gml_seo_schema_extra', true );
+                $specialized = $this->specialized_schema( $id, $detected_type, is_array( $extra ) ? $extra : [] );
+                if ( $specialized ) {
+                    $schemas[] = $specialized;
+                } else {
+                    // Fallback to default for post type
+                    $schemas[] = $post->post_type === 'post'
+                        ? $this->article_schema( $id )
+                        : $this->webpage_schema( $id );
+                }
             } elseif ( $post->post_type === 'post' ) {
                 $schemas[] = $this->article_schema( $id );
             } else {
@@ -42,6 +57,10 @@ class GML_SEO_Schema {
             // FAQ schema (if AI generated FAQ for this post)
             $faq_schema = $this->faq_schema( $id );
             if ( $faq_schema ) $schemas[] = $faq_schema;
+
+            // Speakable schema (helps voice assistants / AI Overviews)
+            $speakable = $this->speakable_schema( $id );
+            if ( $speakable ) $schemas[] = $speakable;
         }
 
         foreach ( $schemas as $s ) {
@@ -155,6 +174,127 @@ class GML_SEO_Schema {
         }
 
         return $schema;
+    }
+
+    // ── Specialized schemas (HowTo, Recipe, Review, etc.) ───────────
+
+    private function specialized_schema( $id, $type, $extra ) {
+        $post   = get_post( $id );
+        $img    = get_the_post_thumbnail_url( $id, 'large' );
+        $desc   = get_post_meta( $id, '_gml_seo_desc', true ) ?: wp_trim_words( $post->post_content, 30 );
+        $author = get_the_author_meta( 'display_name', $post->post_author );
+
+        $base = [
+            '@context'      => 'https://schema.org',
+            'name'          => get_the_title( $id ),
+            'description'   => $desc,
+            'url'           => get_permalink( $id ),
+            'datePublished' => get_the_date( 'c', $id ),
+            'dateModified'  => get_the_modified_date( 'c', $id ),
+        ];
+        if ( $img ) $base['image'] = $img;
+
+        switch ( $type ) {
+            case 'HowTo':
+                if ( empty( $extra['howto_steps'] ) || ! is_array( $extra['howto_steps'] ) ) return null;
+                $steps = [];
+                foreach ( $extra['howto_steps'] as $i => $s ) {
+                    if ( empty( $s['name'] ) || empty( $s['text'] ) ) continue;
+                    $steps[] = [
+                        '@type'    => 'HowToStep',
+                        'position' => $i + 1,
+                        'name'     => $s['name'],
+                        'text'     => $s['text'],
+                    ];
+                }
+                if ( empty( $steps ) ) return null;
+                return array_merge( $base, [
+                    '@type' => 'HowTo',
+                    'step'  => $steps,
+                ] );
+
+            case 'Recipe':
+                if ( empty( $extra['recipe_ingredients'] ) || empty( $extra['recipe_instructions'] ) ) return null;
+                $instructions = [];
+                foreach ( (array) $extra['recipe_instructions'] as $i => $step ) {
+                    $instructions[] = [
+                        '@type' => 'HowToStep',
+                        'position' => $i + 1,
+                        'text' => (string) $step,
+                    ];
+                }
+                return array_merge( $base, [
+                    '@type'               => 'Recipe',
+                    'author'              => [ '@type' => 'Person', 'name' => $author ],
+                    'recipeIngredient'    => array_map( 'strval', (array) $extra['recipe_ingredients'] ),
+                    'recipeInstructions'  => $instructions,
+                ] );
+
+            case 'Review':
+                $rating = isset( $extra['review_rating'] ) ? (float) $extra['review_rating'] : 0;
+                if ( $rating <= 0 || $rating > 5 ) return null;
+                return array_merge( $base, [
+                    '@type' => 'Review',
+                    'author' => [ '@type' => 'Person', 'name' => $extra['review_author'] ?? $author ],
+                    'reviewRating' => [
+                        '@type' => 'Rating',
+                        'ratingValue' => $rating,
+                        'bestRating'  => 5,
+                    ],
+                ] );
+
+            case 'Event':
+                if ( empty( $extra['event_date'] ) ) return null;
+                $ev = array_merge( $base, [
+                    '@type'     => 'Event',
+                    'startDate' => $extra['event_date'],
+                ] );
+                if ( ! empty( $extra['event_location'] ) ) {
+                    $ev['location'] = [
+                        '@type' => 'Place',
+                        'name'  => $extra['event_location'],
+                    ];
+                }
+                return $ev;
+
+            case 'VideoObject':
+                if ( empty( $extra['video_name'] ) ) return null;
+                return array_merge( $base, [
+                    '@type'        => 'VideoObject',
+                    'name'         => $extra['video_name'],
+                    'description'  => $extra['video_description'] ?? $desc,
+                    'uploadDate'   => $base['datePublished'],
+                    'thumbnailUrl' => $img ?: null,
+                ] );
+
+            case 'Course':
+                return array_merge( $base, [
+                    '@type'    => 'Course',
+                    'provider' => [
+                        '@type' => 'Organization',
+                        'name'  => $extra['course_provider'] ?? GML_SEO::opt( 'site_name', get_bloginfo( 'name' ) ),
+                    ],
+                ] );
+        }
+        return null;
+    }
+
+    // ── Speakable (voice search + AI Overviews hint) ─────────────────
+
+    private function speakable_schema( $id ) {
+        $bluf = get_post_meta( $id, '_gml_seo_bluf', true );
+        if ( ! $bluf ) return null;
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type'    => 'WebPage',
+            '@id'      => get_permalink( $id ) . '#speakable',
+            'speakable' => [
+                '@type'    => 'SpeakableSpecification',
+                'cssSelector' => [ '.gml-seo-bluf' ],
+            ],
+            'url' => get_permalink( $id ),
+        ];
     }
 
     // ── FAQ ──────────────────────────────────────────────────────────

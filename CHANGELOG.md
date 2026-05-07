@@ -2,6 +2,72 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.5.0] - 2026-04-16
+
+### 🤖 SEO 从一次性任务升级为持续自动化工作流
+
+本版本围绕一个核心理念：**SEO 不是发布时做一次就完事的事情**。插件会定时全站扫描，识别变质内容自动重新优化，并把变更实时推送给搜索引擎。目标是让 AI 做得比一般 SEO 人员更好。
+
+### Added
+
+#### 🗓 SEO Health Monitor — 定时自动化引擎（核心）
+- **每周全站扫描**（频率可调：每天/每周/每月/禁用），根据多信号识别需要重新优化的页面：
+  - 从未分析 → 优先级 90
+  - 缺失标题/描述 → 优先级 80
+  - 内容变更但未重新分析 → 优先级 70（content hash 对比）
+  - SEO 分数 &lt; 60 → 优先级 60
+  - 超过新鲜度阈值 → 优先级 40（新闻 30 天、教程 90 天、普通 180 天、页面 365 天）
+- 自动按优先级排队 + 分批处理（每批 3 篇，间隔 5 分钟避免 API 限流）
+- 类别感知的新鲜度阈值：自动识别 news/announcement/教程/guide 分类
+- 可过滤：`gml_seo_freshness_threshold_days` hook 允许自定义阈值
+- 扫描报告：healthy / stale / changed / missing / low_score 统计
+- 运行日志（保留最近 50 条）
+
+#### 🚀 Real-time Indexing — 内容变更秒级推送
+- **IndexNow** 协议支持（Bing / Yandex / Seznam / Naver 免配置）：
+  - 自动生成 32 位验证密钥并通过 rewrite rule + fallback 路由提供
+  - 发布、更新、下线、删除时自动推送 URL
+  - Fire-and-forget 非阻塞请求，不影响保存体验
+- **Google Indexing API** 支持：
+  - 服务账号 JSON 粘贴即用
+  - 自动 JWT 签名获取 access token（transient 缓存 45 分钟）
+  - 支持 URL_UPDATED 和 URL_DELETED 事件
+
+#### 🎯 AI-Search Optimization — 抢占 AI Overviews 引用
+- **BLUF / TL;DR 自动生成** — AI 提取 1-2 句直接答案（≤280 字符），自动注入文章开头
+- **Speakable schema** 标记 BLUF 区块，提示 Google 用于语音搜索和 AI Overviews
+- **AI-search score** — 单独的 0-100 分，评估页面在 AI Overviews 中被引用的可能性
+- **E-E-A-T score** — 单独评分，衡量 Experience / Expertise / Authoritativeness / Trust
+
+#### 📋 Schema 智能扩展
+AI 自动识别内容类型，输出对应的富结构化数据：
+- **HowTo** — 教程类，带 `step` 列表
+- **Recipe** — 食谱，带 `recipeIngredient` + `recipeInstructions`
+- **Review** — 评测，带 `reviewRating`
+- **Event** — 活动页，带 `startDate` + `location`
+- **VideoObject** — 含视频页面
+- **Course** — 教育课程
+
+只在 AI 明确识别出匹配类型时才输出（遵循 Google "结构化数据必须匹配可见内容" 指南）。
+
+#### 📊 Automation Dashboard — 新建 Admin 页
+- 下次扫描倒计时
+- 队列状态 / 最近扫描时间 / 索引协议状态
+- "立即扫描" / "立即处理队列" 手动按钮
+- 彩色终端风格运行日志
+
+### Changed
+
+#### AI Prompt 升级到 Google 2025 官方指南
+- 纳入 May 2025 "Top ways to ensure your content performs well in Google's AI experiences on Search" 官方指南
+- 纳入 HCS（Helpful Content System）已并入核心排名算法的事实
+- BLUF（Bottom Line Up Front）作为必选字段
+- 提示词明确要求：独特/非商品化内容、第一手经验证据、非显而易见的洞察
+- INP 替代 FID 的 Core Web Vitals 信号说明
+
+#### 插件描述重写
+强调"定时自动化"和"为 AI Overviews 时代而生"的定位。
+
 ## [1.4.1] - 2026-04-16
 
 ### Fixed

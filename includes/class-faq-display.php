@@ -1,14 +1,14 @@
 <?php
 /**
- * Frontend FAQ section renderer.
+ * Frontend BLUF (TL;DR) + FAQ renderer.
  *
- * Appends an accessible, styled FAQ section to the_content when a post
- * has AI-generated FAQ data (_gml_seo_faq). The JSON-LD schema is output
- * separately by class-schema.php so FAQPage rich results work even if
- * the visible section is disabled by theme/template.
+ * - Prepends a BLUF / TL;DR block to the_content when AI has generated one.
+ *   This direct-answer summary makes the page a stronger AI Overviews candidate.
+ *   It's also the target of Speakable schema for voice / AI assistant quoting.
  *
- * Google requires the FAQ content to be visible on the page for the
- * FAQPage rich result to qualify. This class ensures that.
+ * - Appends an accessible FAQ <details> section when AI-generated FAQ exists.
+ *   Google requires the FAQ content to be visible on the page for FAQPage
+ *   rich result to qualify.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -24,8 +24,20 @@ class GML_SEO_FAQ_Display {
         // Only on singular main-query content
         if ( ! is_singular() || ! in_the_loop() || ! is_main_query() ) return $content;
 
-        // Respect per-post disable flag
         $id = get_the_ID();
+
+        // Prepend BLUF if enabled and available (for AI Overviews visibility)
+        $bluf = get_post_meta( $id, '_gml_seo_bluf', true );
+        $show_bluf = $bluf && ! get_post_meta( $id, '_gml_seo_bluf_hide', true );
+        if ( $show_bluf ) {
+            $bluf_html = '<div class="gml-seo-bluf" role="note">'
+                       . '<strong class="gml-seo-bluf-label">TL;DR</strong> '
+                       . esc_html( $bluf )
+                       . '</div>';
+            $content = $bluf_html . $content;
+        }
+
+        // Respect per-post disable flag
         if ( get_post_meta( $id, '_gml_seo_faq_hide', true ) ) return $content;
 
         $faq = get_post_meta( $id, '_gml_seo_faq', true );
@@ -54,12 +66,16 @@ class GML_SEO_FAQ_Display {
     }
 
     public function inline_styles() {
-        // Only output on pages that have FAQ
+        // Only output on pages that have FAQ or BLUF
         if ( ! is_singular() ) return;
-        $faq = get_post_meta( get_queried_object_id(), '_gml_seo_faq', true );
-        if ( empty( $faq ) ) return;
+        $id   = get_queried_object_id();
+        $faq  = get_post_meta( $id, '_gml_seo_faq', true );
+        $bluf = get_post_meta( $id, '_gml_seo_bluf', true );
+        if ( empty( $faq ) && empty( $bluf ) ) return;
         ?>
 <style id="gml-seo-faq-styles">
+.gml-seo-bluf{margin:0 0 1.5em;padding:.9em 1.1em;background:#f0f7ff;border-left:4px solid #2563eb;border-radius:4px;font-size:1.02em;line-height:1.6;color:#1e3a8a}
+.gml-seo-bluf-label{display:inline-block;font-size:.78em;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#2563eb;margin-right:.4em}
 .gml-seo-faq{margin:2.5em 0;padding:1.5em 0;border-top:1px solid #e5e7eb}
 .gml-seo-faq-heading{margin:0 0 1em;font-size:1.5em;line-height:1.3}
 .gml-seo-faq-list{display:flex;flex-direction:column;gap:.5em}

@@ -162,7 +162,27 @@ class GML_SEO_AI_Engine {
 
     private function build_master_prompt() {
         return <<<'PROMPT'
-You are a world-class SEO consultant. Your optimization MUST follow Google's official SEO guidelines (Google Search Essentials + SEO Starter Guide). Every recommendation must be something Google explicitly endorses or rewards.
+You are a world-class SEO consultant who stays current with Google's latest guidance. Your optimization MUST follow Google's official SEO guidelines (Search Essentials, SEO Starter Guide, and the May 2025 "Top ways to ensure your content performs well in Google's AI experiences on Search" guidance). Every recommendation must be something Google explicitly endorses or rewards.
+
+## LATEST GOOGLE GUIDANCE (2024-2025)
+
+**AI Search Era (AI Overviews + AI Mode)**
+Google now answers many queries directly with AI-generated summaries that cite sources. To get cited:
+- Content must be UNIQUE and NON-COMMODITY — rehashed content gets ignored
+- Answer the user's question clearly and concisely in the opening paragraph (BLUF — Bottom Line Up Front)
+- Use semantic structure: clear headings, short paragraphs, scannable lists
+- Visible content MUST match structured data exactly
+- Long-tail, conversational queries matter more than ever (users ask Google full questions)
+
+**Helpful Content System (HCS) is now part of core ranking**
+Google evaluates content holistically — a single low-quality page can hurt the whole site. Every page must:
+- Be written for humans first, search engines second
+- Demonstrate first-hand experience (the "E" in E-E-A-T) — personal usage, testing, case data
+- Provide non-obvious insight beyond a summary of other sources
+- Be kept up-to-date (stale content is a ranking negative for time-sensitive topics)
+
+**Core Web Vitals 2025**
+INP replaced FID as a ranking signal. Focus: interaction responsiveness, not just first input.
 
 ## GOOGLE'S CORE PRINCIPLES (you must follow these)
 
@@ -180,7 +200,7 @@ You are a world-class SEO consultant. Your optimization MUST follow Google's off
 
 7. INTERNAL LINKS: Google says "Links are a great way to connect your users and search engines to other parts of your site." Links help Google discover pages. Use descriptive anchor text that tells users and Google what the linked page contains.
 
-8. STRUCTURED DATA: Google recommends JSON-LD format. Valid structured data makes pages eligible for rich results (review stars, carousels, FAQs, etc.). Must accurately represent page content — never add markup for content not on the page.
+8. STRUCTURED DATA: Google recommends JSON-LD format. Valid structured data makes pages eligible for rich results (review stars, carousels, FAQs, etc.). MUST accurately represent page content — never add markup for content not visible on the page.
 
 9. THINGS GOOGLE SAYS DON'T MATTER:
    - meta keywords tag (Google Search doesn't use it)
@@ -256,6 +276,26 @@ Generate 3-5 frequently asked questions that REAL users searching for this topic
 - Cover different angles of the primary keyword / search intent
 - If the page content is too thin to support accurate FAQ, return an empty array
 
+### 11. AI-SEARCH READINESS (new for 2025)
+For pages to be cited in AI Overviews and AI Mode, extract a BLUF-style summary:
+- 1-2 sentences (max 280 chars) that directly answer the page's primary query
+- Must stand alone without context — AI may quote it verbatim
+- Use the exact language a user would use, not marketing speak
+- Based on the actual page content, never invent claims
+
+Also detect the appropriate SCHEMA TYPE for richer results:
+- Article  : blog posts, news, general articles
+- HowTo    : step-by-step guides (must have numbered steps visible on page)
+- Recipe   : food recipes with ingredients + instructions
+- Review   : product/service reviews with ratings
+- Product  : e-commerce product pages (already handled by WooCommerce)
+- Event    : events with date/location
+- VideoObject : pages with embedded video
+- Course   : educational course pages
+- WebPage  : generic pages not fitting above
+
+Only suggest a non-default type if the page CLEARLY matches that type's required fields.
+
 ## OUTPUT FORMAT
 
 Return a valid JSON object (NO markdown fences):
@@ -276,12 +316,29 @@ Return a valid JSON object (NO markdown fences):
 
   "slug_suggestion": "<optimized slug with descriptive words, or null if current is good>",
 
+  "bluf": "<1-2 sentence direct answer to the primary query, ≤280 chars, AI-Overview-ready>",
+  "schema_type": "<Article|HowTo|Recipe|Review|Event|VideoObject|Course|WebPage>",
+  "schema_extra": {
+    "howto_steps": [{"name":"<step name>","text":"<what to do>"}],
+    "recipe_ingredients": ["<ingredient>"],
+    "recipe_instructions": ["<step>"],
+    "review_rating": <number 1-5 or null>,
+    "review_author": "<name or null>",
+    "event_date": "<ISO 8601 or null>",
+    "event_location": "<location or null>",
+    "video_name": "<video title or null>",
+    "video_description": "<desc or null>",
+    "course_provider": "<name or null>"
+  },
+
   "audit": {
     "content_score": <0-100 based on Google's people-first content criteria>,
+    "eeat_score":    <0-100 how well the page demonstrates Experience, Expertise, Authoritativeness, Trust>,
+    "ai_search_score": <0-100 how well-positioned this page is to be cited in AI Overviews>,
     "issues": [
       {
         "type": "<critical|warning|info|good>",
-        "category": "<title|description|content|headings|images|links|technical|social>",
+        "category": "<title|description|content|headings|images|links|technical|social|eeat|ai_search>",
         "message": "<specific issue found>",
         "fix": "<specific actionable fix, or null if just informational>"
       }
@@ -367,6 +424,30 @@ PROMPT;
             } else {
                 delete_post_meta( $post_id, '_gml_seo_faq' );
             }
+        }
+
+        // BLUF (AI Overview-ready summary)
+        if ( ! empty( $result['bluf'] ) ) {
+            update_post_meta( $post_id, '_gml_seo_bluf', sanitize_text_field( $result['bluf'] ) );
+        }
+
+        // Schema type detection + extra data
+        if ( ! empty( $result['schema_type'] ) ) {
+            $valid = [ 'Article', 'HowTo', 'Recipe', 'Review', 'Event', 'VideoObject', 'Course', 'WebPage' ];
+            if ( in_array( $result['schema_type'], $valid, true ) ) {
+                update_post_meta( $post_id, '_gml_seo_schema_type', $result['schema_type'] );
+            }
+        }
+        if ( ! empty( $result['schema_extra'] ) && is_array( $result['schema_extra'] ) ) {
+            update_post_meta( $post_id, '_gml_seo_schema_extra', $result['schema_extra'] );
+        }
+
+        // E-E-A-T and AI-search subscores
+        if ( isset( $result['audit']['eeat_score'] ) ) {
+            update_post_meta( $post_id, '_gml_seo_eeat_score', (int) $result['audit']['eeat_score'] );
+        }
+        if ( isset( $result['audit']['ai_search_score'] ) ) {
+            update_post_meta( $post_id, '_gml_seo_ai_score', (int) $result['audit']['ai_search_score'] );
         }
 
         // After SEO data is saved, update the auto-link candidate index

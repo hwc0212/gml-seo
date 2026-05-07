@@ -2,8 +2,8 @@
 /**
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
- * Description: Zero-config AI-powered SEO & Performance. Gemini auto-optimizes titles, descriptions, schema, sitemaps, and page speed. Just install, add your API key, done.
- * Version: 1.4.1
+ * Description: Zero-config AI SEO automation. AI weekly audits your entire site, detects content drift and stale pages, re-optimizes what needs attention, and notifies Google / Bing in real time via IndexNow + Indexing API. Built for 2025 AI Overviews and HCS.
+ * Version: 1.5.0
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.4.1' );
+define( 'GML_SEO_VER', '1.5.0' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -41,9 +41,16 @@ final class GML_SEO {
         require_once GML_SEO_DIR . 'includes/class-code-injection.php';
         require_once GML_SEO_DIR . 'includes/class-metabox.php';
         require_once GML_SEO_DIR . 'includes/class-performance.php';
+        require_once GML_SEO_DIR . 'includes/class-health-monitor.php';
+        require_once GML_SEO_DIR . 'includes/class-indexing.php';
 
         register_activation_hook( __FILE__, [ $this, 'activate' ] );
+        register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
         add_action( 'plugins_loaded', [ $this, 'boot' ] );
+    }
+
+    public function deactivate() {
+        GML_SEO_Health_Monitor::deactivate_cron();
     }
 
     public function activate() {
@@ -70,6 +77,8 @@ final class GML_SEO {
         flush_rewrite_rules();
         // Store version for upgrade detection
         update_option( 'gml_seo_version', GML_SEO_VER );
+        // Schedule weekly health audit
+        GML_SEO_Health_Monitor::activate_cron();
     }
 
     public function boot() {
@@ -86,6 +95,8 @@ final class GML_SEO {
         new GML_SEO_Admin();
         new GML_SEO_Code_Injection();
         new GML_SEO_Auto_Link();
+        new GML_SEO_Health_Monitor();
+        new GML_SEO_Indexing();
 
         if ( ! is_admin() ) {
             new GML_SEO_Meta_Tags();
