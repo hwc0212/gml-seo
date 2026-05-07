@@ -61,23 +61,29 @@ class GML_SEO_Translate_Bootstrap {
      * Check whether the standalone GML Translate plugin is currently active.
      * Uses the active_plugins option directly — safe to call before
      * wp-admin/includes/plugin.php is loaded.
+     *
+     * NOTE: We intentionally DO NOT check `class_exists('GML_Translate')` or
+     * `class_exists('GML_Installer')` as a fallback. Our bundled module
+     * legitimately loads its own copies of those classes (GML_Installer is
+     * loaded to run dbDelta on upgrades), so a class-existence check would
+     * report a false positive and persistently show the "standalone active"
+     * warning even after the user uninstalled the standalone plugin.
      */
     public static function standalone_is_active() {
+        // Single-site: check active_plugins option
         $active = (array) get_option( 'active_plugins', [] );
         if ( in_array( 'gml-translate/gml-translate.php', $active, true ) ) {
             return true;
         }
-        // Also check network-activated plugins (multisite)
+
+        // Multisite: check network-activated plugins
         if ( is_multisite() ) {
             $network = (array) get_site_option( 'active_sitewide_plugins', [] );
             if ( isset( $network['gml-translate/gml-translate.php'] ) ) {
                 return true;
             }
         }
-        // Defensive: check if classes are already defined (plugin loaded earlier)
-        if ( class_exists( 'GML_Translate', false ) || class_exists( 'GML_Installer', false ) ) {
-            return true;
-        }
+
         return false;
     }
 

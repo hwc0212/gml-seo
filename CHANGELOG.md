@@ -2,6 +2,15 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.7.3] - 2026-04-16
+
+### Fixed
+- 🐛 **卸载独立 GML Translate 后仍持续显示"独立插件正在运行"警告**
+  - 根因：`standalone_is_active()` 除了检查 `active_plugins` option，还有一层"防御性"的 `class_exists('GML_Translate') || class_exists('GML_Installer')` 检测
+  - 但我们自己的 bundled 模块里也有 `GML_Installer` 类（位于 `includes/translate/class-installer.php`），DB 自动升级时会调用 `GML_Installer::activate()` 导致该类被加载
+  - `active_plugins` 已经显示独立插件不在激活列表里，但 `class_exists` 检测返回 true，导致误报
+  - 修复：删除 class_exists 检测，只保留 `active_plugins` + `active_sitewide_plugins`（multisite）两个权威来源
+
 ## [1.7.2] - 2026-04-16
 
 ### Fixed
