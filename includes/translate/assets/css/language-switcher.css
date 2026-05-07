@@ -1,0 +1,308 @@
+/* GML Language Switcher - Frontend Styles
+ *
+ * Design principle: the switcher inherits font/color/size from its parent
+ * container so it adapts naturally to nav menus, headers, footers, sidebars,
+ * and shortcode placements. Only the floating dropdown panel uses a fixed
+ * font stack because it's positioned absolutely outside the document flow.
+ */
+
+/* ── Root container — fully adaptive ─────────────────────── */
+.gml-language-switcher {
+    display: inline-block;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    line-height: inherit;
+    position: relative;
+    vertical-align: middle;
+}
+
+/* ── Flag images ─────────────────────────────────────────── */
+.gml-flag-img {
+    display: inline-block;
+    vertical-align: middle;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.gml-flag-rectangle { width: 24px; height: 16px; border-radius: 2px; }
+.gml-flag-square    { width: 20px; height: 20px; border-radius: 3px; }
+.gml-flag-circle    { width: 20px; height: 20px; border-radius: 50%; }
+.gml-flag-emoji {
+    font-size: 1.15em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* ── Dropdown trigger button — inherits everything ───────── */
+.gml-style-dropdown .gml-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.gml-style-dropdown .gml-dropdown-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: none;
+    outline: none;
+    transition: opacity 0.2s;
+}
+
+.gml-style-dropdown .gml-dropdown-btn:hover,
+.gml-style-dropdown .gml-dropdown.open .gml-dropdown-btn {
+    opacity: 0.75;
+}
+
+.gml-style-dropdown .gml-dropdown-arrow {
+    font-size: 0.65em;
+    color: currentColor;
+    opacity: 0.6;
+    margin-left: 2px;
+    transition: transform 0.2s;
+}
+.gml-style-dropdown .gml-dropdown.open .gml-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.gml-style-dropdown .gml-lang-label {
+    flex: 1;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* ── Dropdown panel — fixed style (floats outside flow) ──── */
+/* The panel is teleported to <body> by JS to escape theme CSS selectors.
+   These rules target both the original position (no-JS fallback) and the
+   teleported position (direct child of <body>). */
+.gml-language-switcher .gml-dropdown-menu,
+.gml-language-switcher ul.gml-dropdown-menu,
+ul.gml-dropdown-menu.gml-dropdown-teleported,
+.gml-dropdown-menu.gml-dropdown-teleported {
+    display: none;
+    position: absolute !important;
+    top: calc(100% + 4px) !important;
+    left: 0 !important;
+    min-width: 140px !important;
+    background: #fff !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 4px 0 !important;
+    z-index: 99999 !important;
+    overflow: hidden !important;
+    border: none !important;
+    float: none !important;
+    width: auto !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+}
+.gml-style-dropdown .gml-dropdown.open .gml-dropdown-menu {
+    display: block !important;
+}
+
+/* Reset <li> inside dropdown — override any theme spacing */
+.gml-language-switcher .gml-dropdown-menu *,
+.gml-dropdown-menu.gml-dropdown-teleported * {
+    box-sizing: border-box !important;
+}
+.gml-language-switcher .gml-dropdown-menu li,
+.gml-language-switcher ul.gml-dropdown-menu > li,
+.gml-dropdown-menu.gml-dropdown-teleported li,
+.gml-dropdown-menu.gml-dropdown-teleported > li {
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+    line-height: normal !important;
+    border: none !important;
+    background: none !important;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    float: none !important;
+    width: 100% !important;
+    position: static !important;
+}
+
+/* Dropdown items — these use a fixed font since they float */
+.gml-language-switcher .gml-dropdown-item,
+.gml-language-switcher a.gml-dropdown-item,
+.gml-dropdown-menu.gml-dropdown-teleported .gml-dropdown-item,
+.gml-dropdown-menu.gml-dropdown-teleported a.gml-dropdown-item,
+.gml-dropdown-menu.gml-dropdown-teleported li a {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 14px !important;
+    margin: 0 !important;
+    color: #333 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    font-size: 14px !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    line-height: 1.4 !important;
+    transition: background 0.15s !important;
+    border: none !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    background: transparent !important;
+    height: auto !important;
+    min-height: 0 !important;
+    float: none !important;
+    width: 100% !important;
+    position: static !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-weight: normal !important;
+}
+.gml-language-switcher .gml-dropdown-menu li:last-child .gml-dropdown-item,
+.gml-language-switcher .gml-dropdown-menu li:last-child a.gml-dropdown-item,
+.gml-dropdown-menu.gml-dropdown-teleported li:last-child .gml-dropdown-item,
+.gml-dropdown-menu.gml-dropdown-teleported li:last-child a {
+    border-bottom: none !important;
+}
+.gml-language-switcher .gml-dropdown-item:hover,
+.gml-language-switcher a.gml-dropdown-item:hover,
+.gml-dropdown-menu.gml-dropdown-teleported .gml-dropdown-item:hover,
+.gml-dropdown-menu.gml-dropdown-teleported a.gml-dropdown-item:hover,
+.gml-dropdown-menu.gml-dropdown-teleported li a:hover {
+    background: #f7f7f7 !important;
+    color: #333 !important;
+    text-decoration: none !important;
+}
+.gml-language-switcher .gml-dropdown-item.gml-active,
+.gml-dropdown-menu.gml-dropdown-teleported .gml-dropdown-item.gml-active {
+    background: #f0f0f0 !important;
+    font-weight: 600 !important;
+}
+
+/* ── Button/link style — also inherits by default ────────── */
+.gml-style-buttons .gml-language-buttons {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.gml-style-buttons .gml-lang-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    background: transparent;
+    color: inherit;
+    text-decoration: none;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+.gml-style-buttons .gml-lang-button:hover {
+    opacity: 1;
+}
+.gml-style-buttons .gml-lang-button.gml-active {
+    opacity: 1;
+    font-weight: 600;
+    border-width: 2px;
+}
+
+/* ── Nav menu integration ────────────────────────────────── */
+/* When placed inside a nav menu (<li class="menu-item">), ensure the
+   switcher sits inline with other menu items and inherits all styling. */
+li.gml-menu-item,
+li.menu-item.gml-menu-item-switcher {
+    list-style: none !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Force inherit in menu context — override any leftover fixed values */
+.gml-in-menu,
+.gml-in-menu .gml-dropdown-btn,
+.gml-in-menu .gml-lang-label,
+.gml-in-menu .gml-lang-button {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    color: inherit !important;
+    line-height: inherit !important;
+    letter-spacing: inherit !important;
+    text-transform: inherit !important;
+    text-decoration: none !important;
+}
+
+.gml-in-menu .gml-dropdown-btn {
+    padding: 0 !important;
+}
+
+.gml-in-menu .gml-dropdown-btn:hover {
+    opacity: 0.75;
+}
+
+.gml-in-menu .gml-dropdown-menu {
+    left: auto !important;
+    right: 0 !important;
+}
+
+/* Override menu style sync for dropdown panel items — they must use fixed styles */
+.gml-in-menu .gml-dropdown-menu li,
+.gml-in-menu .gml-dropdown-menu li[role="option"],
+.gml-in-menu ul.gml-dropdown-menu > li {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: normal !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: block !important;
+    float: none !important;
+}
+.gml-in-menu .gml-dropdown-menu a,
+.gml-in-menu .gml-dropdown-menu a.gml-dropdown-item {
+    font-size: 14px !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    line-height: 1.4 !important;
+    padding: 8px 14px !important;
+    margin: 0 !important;
+    color: #333 !important;
+    font-weight: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    float: none !important;
+}
+
+.gml-in-menu .gml-lang-button {
+    border: none !important;
+    background: transparent !important;
+    padding: 4px 8px !important;
+    opacity: 0.7;
+}
+.gml-in-menu .gml-lang-button:hover {
+    opacity: 1;
+}
+.gml-in-menu .gml-lang-button.gml-active {
+    opacity: 1;
+    font-weight: 600 !important;
+}

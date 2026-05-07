@@ -51,6 +51,7 @@ class GML_SEO_Admin {
             <nav class="nav-tab-wrapper">
                 <a href="?page=gml-seo&tab=settings" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">⚙️ Settings</a>
                 <a href="?page=gml-seo&tab=automation" class="nav-tab <?php echo $tab === 'automation' ? 'nav-tab-active' : ''; ?>">🤖 Automation</a>
+                <a href="?page=gml-seo&tab=translate" class="nav-tab <?php echo $tab === 'translate' ? 'nav-tab-active' : ''; ?>">🌐 Translation</a>
                 <a href="?page=gml-seo&tab=performance" class="nav-tab <?php echo $tab === 'performance' ? 'nav-tab-active' : ''; ?>">⚡ Performance</a>
                 <a href="?page=gml-seo&tab=code" class="nav-tab <?php echo $tab === 'code' ? 'nav-tab-active' : ''; ?>">💉 Code Injection</a>
                 <a href="?page=gml-seo&tab=bulk" class="nav-tab <?php echo $tab === 'bulk' ? 'nav-tab-active' : ''; ?>">🚀 Bulk Optimize</a>
@@ -60,6 +61,7 @@ class GML_SEO_Admin {
             <?php
             switch ( $tab ) {
                 case 'automation': $this->tab_automation( $s ); break;
+                case 'translate': $this->tab_translate(); break;
                 case 'performance': $this->tab_performance(); break;
                 case 'code':      $this->tab_code( $s ); break;
                 case 'bulk':      $this->tab_bulk(); break;
@@ -163,6 +165,39 @@ class GML_SEO_Admin {
         });
         </script>
         <?php
+    }
+
+    // ── Translate Tab (bundled GML Translate module) ─────────────────
+
+    private function tab_translate() {
+        if ( ! class_exists( 'GML_Admin_Settings' ) ) {
+            echo '<div class="notice notice-error"><p>Translation module failed to load.</p></div>';
+            return;
+        }
+
+        // Check for standalone GML Translate migration notice
+        if ( get_transient( 'gml_seo_translate_migrated' ) ) {
+            delete_transient( 'gml_seo_translate_migrated' );
+            echo '<div class="notice notice-success"><p>';
+            echo '<strong>✅ GML Translate 已合并到本插件。</strong> 原独立插件已自动停用，所有翻译数据（设置、翻译记忆库、语言配置）已无缝保留，无需重新翻译。';
+            echo '</p></div>';
+        }
+
+        // Detect if languages are configured
+        $langs = get_option( 'gml_languages', [] );
+        if ( empty( $langs ) ) {
+            ?>
+            <div class="notice notice-info"><p>
+                <strong>🌐 多语言翻译 + SEO 一体化</strong><br>
+                配置目标语言后，AI 不只是翻译内容 —— 它会根据目标语言用户的搜索习惯重新优化 SEO 标题、描述、FAQ。
+                翻译数据与 SEO 数据共用同一个 AI Key 和引擎。
+            </p></div>
+            <?php
+        }
+
+        // Delegate to the bundled settings renderer
+        $settings = new GML_Admin_Settings();
+        $settings->render_page();
     }
 
     // ── Automation Tab (Scheduled Audit + Indexing) ──────────────────

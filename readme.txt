@@ -1,14 +1,14 @@
 === GML AI SEO ===
 Contributors: huwencai
-Tags: seo, ai, sitemap, meta tags, performance
+Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Zero-config AI SEO automation. Scheduled weekly audits, real-time indexing notifications, AI Overviews optimization. Built for 2025 Google search.
+All-in-one AI SEO automation + multilingual translation with destination-language SEO awareness. Built for 2025 AI Overviews and HCS.
 
 == Description ==
 
@@ -121,6 +121,12 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.6.0 =
+* Merged: GML Translate plugin fully absorbed. Dynamic AI translation, hash-based translation memory, language switcher, hreflang, multilingual sitemap, translation editor, glossary, exclusion rules, content crawler, Weglot importer.
+* Seamless migration: Standalone GML Translate auto-deactivated on activation; `wp_gml_index` / `wp_gml_queue` tables and all options preserved — zero re-translation cost.
+* Renamed internal classes `GML_SEO_Hreflang` / `GML_SEO_Router` to `GML_Translate_*` to avoid collisions.
+* Shared AI key and engine across SEO and translation.
+
 = 1.5.0 =
 * Added: Scheduled SEO Health Monitor — weekly full-site audit with 5-signal priority queue (never analyzed, missing data, content drift, low score, staleness). Category-aware freshness thresholds.
 * Added: Real-time indexing via IndexNow (Bing/Yandex/Seznam/Naver, zero config) and Google Indexing API (service account).
@@ -166,6 +172,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.6.0 =
+GML Translate is now part of GML AI SEO. Upgrade, then uninstall the standalone plugin — all translation memory and settings are preserved.
 
 = 1.5.0 =
 Major upgrade: SEO now runs as a scheduled worker. Weekly full-site audit, real-time indexing, AI Overviews optimization. Visit the new Automation tab after upgrade.

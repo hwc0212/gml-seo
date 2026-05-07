@@ -2,6 +2,55 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.6.0] - 2026-04-16
+
+### 🔀 GML Translate 已合并进本插件
+
+这是一次架构级合并：**GML Translate 作为独立插件从此进入 deprecated 状态**，其全部功能（22 个类、动态翻译引擎、翻译记忆库、语言切换器、hreflang、多语言 sitemap、内容爬虫、翻译编辑器、术语表、Weglot 迁移工具）现在内置于本插件中，共享同一个 AI Key 和引擎配置。
+
+合并的核心动机：**翻译的内容也需要做 SEO**。直接翻译往往不是目标语言用户会搜索的说法——英语用户搜 "best espresso machine"，而日语用户搜「家庭用 エスプレッソ マシン おすすめ」。这不是翻译问题，是**搜索习惯本地化**问题。只有翻译和 SEO 共享一个 AI 上下文，才能做到真正意义上的多语言 SEO。
+
+### Added
+
+#### 🌐 Translation 模块（完整内建）
+- 全部原 GML Translate 功能无缝可用：
+  - Gemini / DeepSeek 双引擎动态翻译（共享 SEO 的 AI Key 配置）
+  - 基于 hash 的翻译记忆库（`wp_gml_index` 表）
+  - 异步翻译队列（`wp_gml_queue` 表 + cron 处理器）
+  - 可视化翻译编辑器（手动修正、搜索、分页）
+  - 术语表（Glossary）强制翻译规则
+  - 排除规则（Exclusion Rules）跳过特定选择器/路径
+  - 语言切换器（下拉/内联，支持国旗/语言名）
+  - Nav Menu 语言切换器（单独菜单项）
+  - 语言自动检测 + cookie 记忆
+  - 多语言 sitemap（gml-sitemap.xml）+ hreflang 标签
+  - 内容爬虫（Content Crawler）后台批量预翻译
+  - Gettext filter（翻译主题/插件内的 i18n 字符串）
+  - Weglot 配置自动导入（从 Weglot 迁移无缝）
+- 新增 **🌐 Translation** admin tab（GML AI SEO 主菜单下），保留原 5 个子 tab（Settings / Switcher / Translations / Exclusions / Glossary）
+
+#### 🔄 从独立 GML Translate 无缝迁移
+- 合并插件激活时：
+  1. 自动检测并停用独立的 GML Translate 插件
+  2. **数据表 wp_gml_index / wp_gml_queue 保持不变**——翻译记忆库 100% 保留
+  3. `gml_languages`、`gml_source_lang`、`gml_translation_enabled`、`gml_glossary_rules`、`gml_exclusion_rules` 等所有 option 无缝复用
+  4. Admin 通知提示用户合并完成 + 数据已保留
+- 已翻译过的页面**零重复翻译成本**
+
+#### 🔧 类名重构（避免冲突）
+- `GML_SEO_Hreflang` → `GML_Translate_Hreflang`（因与本插件的 `GML_SEO_*` 前缀冲突）
+- `GML_SEO_Router` → `GML_Translate_Router`
+- 删除 orphan 类 `Gemini_Path_Guard`（已无人引用）
+- 独立自动加载器（bootstrap 实现）路由 `GML_*` 类到 `includes/translate/` 子目录
+
+### 后续规划（v1.7.0）
+这一版是**架构合并**，数据保留但翻译流程未改动。v1.7.0 将引入：
+- **SEO-aware 翻译**：翻译时带上主关键词/搜索意图上下文
+- **目标语言 SEO 重写**：标题/描述按目标语言用户搜索习惯独立生成（不是直译）
+- **目标语言 FAQ / BLUF 独立生成**：确保 AI Overviews 在每种语言都能引用
+- **多语言 Health Monitor**：每种语言独立的定时扫描队列
+- **IndexNow 推送翻译版**：每个语言 URL 单独通知搜索引擎
+
 ## [1.5.0] - 2026-04-16
 
 ### 🤖 SEO 从一次性任务升级为持续自动化工作流
