@@ -2,6 +2,22 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.8.0] - 2026-04-16
+
+### Added — 4 项安全的性能优化（Lighthouse 友好）
+
+1. **Google Fonts `font-display: swap`** — `style_loader_tag` 过滤器自动检测 `fonts.googleapis.com` 的 stylesheet URL，追加 `&display=swap`。消除 Lighthouse "Ensure text remains visible during webfont load" 警告。字体加载时浏览器先用系统字体显示，加载完成后无缝切换。
+2. **HTML 输出压缩** — `process_buffer()` 新增 `minify_html()`，移除多余空白和 HTML 注释（保留 IE 条件注释 `<!--[if IE]>...`），智能跳过 `<pre>`、`<textarea>`、`<script>`、`<style>`、`<code>` 内部。HTML 体积减少 5-15%。
+3. **HTTP Link 预加载头** — `preload_featured_image()` 和 `resource_hints()` 除了输出 `<link rel="preload">` / `<link rel="preconnect">`，同时通过 PHP `header('Link: ...')` 发送 HTTP Link 头。支持 HTTP/2 Early Hints（Cloudflare、Fastly 会转为 103 状态码，浏览器能在 HTML 还没完整到达时就开始建立连接和加载关键资源）。
+4. **禁用 oEmbed REST 端点** — `/wp-json/oembed/*` 路由几乎无人使用但被机器人频繁爬取，`disable_oembed_rest()` 移除 `wp_oembed_register_route` action、`oembed_response_data` filter、`_oembed_rest_pre_serve_request` filter，并从 TinyMCE plugins 列表剔除 `wpembed`。减少服务器 CPU 压力。
+
+Performance tab 显示这 4 项新优化，以 🆕 标记区分。
+
+### Notes
+- 所有新增优化都是**安全的**：有回退逻辑、不触碰已有标记（如已有 `display=` 的 fonts URL 不会重复追加）、不修改 DB 内容
+- 新增代码共约 170 行，全部在 `class-performance.php`
+- 与 v1.7.x 完全向后兼容，不需要任何配置
+
 ## [1.7.3] - 2026-04-16
 
 ### Fixed

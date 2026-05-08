@@ -37,6 +37,11 @@ class GML_SEO_Performance {
         // ── JS Optimization ──────────────────────────────────────
         add_filter( 'script_loader_tag', [ $this, 'defer_js' ], 10, 3 );
 
+        // ── Font optimization (font-display: swap) ───────────────
+        // Google Fonts without font-display cause "Ensure text remains
+        // visible during webfont load" Lighthouse warning.
+        add_filter( 'style_loader_tag', [ $this, 'add_font_display_swap' ], 10, 4 );
+
         // ── Image Optimization (output buffer) ───────────────────
         // Priority 0: run BEFORE GML Translate (priority 1) so that
         // translated HTML still gets image lazy-load / width-height fixes.
@@ -44,11 +49,14 @@ class GML_SEO_Performance {
         // Flush order: GML SEO processes first, then GML Translate translates.
         add_action( 'template_redirect', [ $this, 'start_buffer' ], 0 );
 
-        // ── Resource Hints ───────────────────────────────────────
+        // ── Resource Hints + Preload HTTP header ─────────────────
         add_action( 'wp_head', [ $this, 'resource_hints' ], 1 );
 
         // ── Preload LCP image ────────────────────────────────────
         add_action( 'wp_head', [ $this, 'preload_featured_image' ], 2 );
+
+        // ── Disable unused oEmbed REST endpoints ─────────────────
+        $this->disable_oembed_rest();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -154,6 +162,51 @@ class GML_SEO_Performance {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // 2b. FONT DISPLAY SWAP
+    // Google Lighthouse: "Ensure text remains visible during webfont load"
+    // Appending display=swap to Google Fonts URLs makes the browser
+    // render text with a system font immediately, then swap in the
+    // web font once loaded — eliminating invisible text during loading.
+    // ═══════════════════════════════════════════════════════════════
+
+    public function add_font_display_swap( $html, $handle, $href, $media ) {
+        // Only affect Google Fonts
+        if ( stripos( $href, 'fonts.googleapis.com' ) === false ) {
+            return $html;
+        }
+        // Skip if swap is already specified
+        if ( stripos( $href, 'display=' ) !== false ) {
+            return $html;
+        }
+
+        $separator = ( strpos( $href, '?' ) !== false ) ? '&' : '?';
+        $new_href  = $href . $separator . 'display=swap';
+
+        // Replace the href in the <link> tag
+        return str_replace( $href, $new_href, $html );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 2c. DISABLE UNUSED oEmbed REST ENDPOINTS
+    // WordPress registers /wp-json/oembed/1.0/* endpoints that are
+    // almost never used but constantly crawled by bots. Disabling saves
+    // CPU on crawl-heavy sites and reduces the REST surface area.
+    // ═══════════════════════════════════════════════════════════════
+
+    private function disable_oembed_rest() {
+        // Remove the oEmbed REST route registration
+        remove_action( 'rest_api_init', 'wp_oembed_register_route' );
+        // Remove oEmbed response filter
+        remove_filter( 'oembed_response_data', 'get_oembed_response_data_rich', 10 );
+        // Remove oEmbed provider from REST
+        remove_filter( 'rest_pre_serve_request', '_oembed_rest_pre_serve_request', 10 );
+        // Drop TinyMCE oEmbed preview (editor-only; skipped for non-admins anyway)
+        add_filter( 'tiny_mce_plugins', function( $plugins ) {
+            return array_diff( $plugins, [ 'wpembed' ] );
+        } );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // 3. IMAGE OPTIMIZATION VIA OUTPUT BUFFER
     // Google: "Add descriptive alt text to the image" and
     // "images can be how people find your website for the first time"
@@ -222,6 +275,68 @@ class GML_SEO_Performance {
             }
             return '<iframe' . $atts . '>';
         }, $html );
+
+        // ── HTML minification ────────────────────────────────────
+        // Google Lighthouse: "Minify HTML" reduces payload 5-15%.
+        // Carefully excludes <pre>, <textarea>, <script>, <style>, <code>
+        // and conditional comments (IE-specific).
+        $html = $this->minify_html( $html );
+
+        return $html;
+    }
+
+    /**
+     * Minify HTML by collapsing whitespace and removing comments.
+     * Preserves content inside tags that require exact whitespace
+     * (pre, textarea, script, style, code) and conditional comments
+     * (e.g. <!--[if IE]>...<![endif]-->).
+     */
+    private function minify_html( $html ) {
+        // Step 1: extract protected blocks and replace with placeholders
+        $protected = [];
+        $counter   = 0;
+        $tags      = 'pre|textarea|script|style|code';
+
+        $html = preg_replace_callback(
+            '#<(' . $tags . ')\b[^>]*>.*?</\1>#is',
+            function ( $m ) use ( &$protected, &$counter ) {
+                $token = '<!--GMLMIN_' . ( $counter++ ) . '-->';
+                $protected[ $token ] = $m[0];
+                return $token;
+            },
+            $html
+        );
+
+        // Step 2: preserve conditional comments before stripping regular comments
+        $html = preg_replace_callback(
+            '/<!--\[if\b[^>]*?\]>.*?<!\[endif\]-->/is',
+            function ( $m ) use ( &$protected, &$counter ) {
+                $token = '<!--GMLMIN_' . ( $counter++ ) . '-->';
+                $protected[ $token ] = $m[0];
+                return $token;
+            },
+            $html
+        );
+
+        // Step 3: strip regular HTML comments
+        $html = preg_replace( '/<!--(?!\[if)(?!-).*?-->/s', '', $html );
+
+        // Step 4: collapse whitespace
+        //   - Multiple spaces/tabs → single space
+        //   - Whitespace around block-level tags can go to zero
+        //   - But keep single newlines to make view-source readable
+        $html = preg_replace( '/\s{2,}/', ' ', $html );
+        $html = preg_replace( '/>\s+</', '><', $html );
+        $html = preg_replace( '/\s{2,}/', ' ', $html );
+
+        // Step 5: restore protected blocks
+        if ( ! empty( $protected ) ) {
+            $html = str_replace(
+                array_keys( $protected ),
+                array_values( $protected ),
+                $html
+            );
+        }
 
         return $html;
     }
@@ -299,6 +414,18 @@ class GML_SEO_Performance {
         foreach ( $hints as $url => $rel ) {
             $crossorigin = ( $rel === 'preconnect' ) ? ' crossorigin' : '';
             echo '<link rel="' . $rel . '" href="' . esc_url( $url ) . '"' . $crossorigin . '>' . "\n";
+
+            // Also send as HTTP Link header (HTTP/2 Early Hints support).
+            // Some CDNs (Cloudflare, Fastly) convert Link: preconnect headers
+            // into 103 Early Hints, letting the browser start connecting
+            // before the HTML arrives.
+            if ( ! headers_sent() ) {
+                $header = '<' . esc_url_raw( $url ) . '>; rel=' . $rel;
+                if ( $rel === 'preconnect' ) {
+                    $header .= '; crossorigin';
+                }
+                header( 'Link: ' . $header, false );
+            }
         }
     }
 
@@ -332,5 +459,20 @@ class GML_SEO_Performance {
             echo ' imagesizes="' . esc_attr( $sizes ) . '"';
         }
         echo ' fetchpriority="high">' . "\n";
+
+        // Also send as HTTP Link: preload header for HTTP/2 Early Hints support.
+        // This lets CDNs and capable servers start pushing the resource
+        // to the browser before the HTML is fully received.
+        if ( ! headers_sent() ) {
+            $link = '<' . esc_url_raw( $src[0] ) . '>; rel=preload; as=image';
+            if ( $srcset ) {
+                // HTTP/2 Link header imagesrcset requires unquoted value
+                $link .= '; imagesrcset="' . str_replace( '"', '%22', $srcset ) . '"';
+            }
+            if ( $sizes ) {
+                $link .= '; imagesizes="' . str_replace( '"', '%22', $sizes ) . '"';
+            }
+            header( 'Link: ' . $link, false ); // false = don't replace existing Link headers
+        }
     }
 }

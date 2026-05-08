@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.7.3
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,10 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 5. Settings page with dual AI engine support.
 
 == Changelog ==
+
+= 1.8.0 =
+* Added: 4 safe performance optimizations — Google Fonts font-display: swap auto-applied, HTML output minification (skips pre/textarea/script/style/code), HTTP Link: preload headers for HTTP/2 Early Hints, disable rarely-used oEmbed REST endpoints.
+* Performance tab updated to show the 4 new optimizations with 🆕 marker.
 
 = 1.7.3 =
 * Fixed: "Standalone GML Translate is running" warning persisted even after uninstalling the standalone plugin. Caused by a defensive class_exists check that triggered on our own bundled GML_Installer class. Removed that check — active_plugins option is the authoritative source.

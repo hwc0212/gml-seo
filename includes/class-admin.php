@@ -415,6 +415,10 @@ class GML_SEO_Admin {
             [ '🟢', 'Preload 特色图片', '在 <head> 中 preload 文章特色图片，加速 LCP（最大内容绘制）。', 'always' ],
             [ '🟢', '自动 Preconnect 外部域名', '检测 Google Fonts、GA、GTM 等外部资源，提前建立连接减少延迟。', 'always' ],
             [ '🟢', 'DNS Prefetch', '对 Gravatar 等外部域名提前做 DNS 解析。', 'always' ],
+            [ '🆕', 'Google Fonts font-display: swap', 'Google Lighthouse："Ensure text remains visible during webfont load"。自动给 Google Fonts URL 加 display=swap，字体加载时先用系统字体显示，避免不可见文字。', 'always' ],
+            [ '🆕', 'HTML 输出压缩', '移除多余空白、HTML 注释（保留条件注释），HTML 体积减少 5-15%。智能跳过 <pre>、<textarea>、<script>、<style>、<code> 内部。', 'always' ],
+            [ '🆕', 'HTTP Link 预加载头', '把 <link rel="preload"> 和 preconnect 同时以 HTTP Link 头发送，支持 HTTP/2 Early Hints（Cloudflare / Fastly 会转为 103 状态，浏览器能在 HTML 还未完整到达时就开始连接）。', 'always' ],
+            [ '🆕', '禁用 oEmbed REST 端点', '/wp-json/oembed/* 几乎无人使用但被机器人频繁爬取，禁用可减少服务器 CPU 压力。', 'always' ],
         ];
         ?>
         <h2>⚡ 性能优化状态</h2>
