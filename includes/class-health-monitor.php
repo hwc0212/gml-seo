@@ -183,6 +183,20 @@ class GML_SEO_Health_Monitor {
             $stats['total'], $stats['healthy'], $stats['queued']
         ) );
 
+        // v1.9.0 Gradual Mode: append an observation-period digest line so
+        // admins can track adoption progress from the weekly log.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
+            $g = GML_SEO_Gradual_Mode_Manager::weekly_digest_stats();
+            $this->log( sprintf(
+                'Gradual digest: migrated=%d, still using migrated data=%d, AI suggestions adopted=%d (%.1f%%). Close the observation period in Settings once you\'re satisfied with adoption.',
+                (int) ( $g['migrated_total'] ?? 0 ),
+                (int) ( $g['still_on_migrated'] ?? 0 ),
+                (int) ( $g['adopted'] ?? 0 ),
+                (float) ( $g['adopted_pct'] ?? 0 )
+            ) );
+        }
+
         // Start processing the queue immediately if there's work to do
         if ( ! empty( $queue ) && ! wp_next_scheduled( self::CRON_PROCESS ) ) {
             wp_schedule_single_event( time() + 60, self::CRON_PROCESS );

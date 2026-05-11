@@ -2,6 +2,84 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.0] - 2026-05-08
+
+### 🛡 SEO 插件安全迁移 + 防惩罚观察期
+
+这一版把"从 Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework 接管过来"做成一个端到端、不会被 Google Core Update 惩罚的流程。按 [Google SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide) 和 [Search Essentials](https://developers.google.com/search/docs/essentials) 的建议，避免一夜之间全站 meta 突变。
+
+### Added
+
+#### 🔍 冲突检测层 — `GML_SEO_Conflict_Detector`
+- 只读扫描 `active_plugins` + 已定义常量，识别 5 个主流 SEO 插件（Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework）
+- 单请求内 `static $cache`，多次调用只扫描一次
+- 前端守卫：命中且迁移未完成时，`class-meta-tags.php` 构造函数首行直接 return，不输出任何 `<title>`、`<meta name="description">`、`<link rel="canonical">`、`<meta property="og:*">`、`<meta name="twitter:*">`。JSON-LD、性能资源、翻译模块照常运行
+- Admin 顶部持久化告警 + 一键跳转"Migration"向导 + dismiss AJAX
+
+#### 📦 数据迁移层 — 四步向导
+- 新增 **Migration** tab：Scan → Preview（前 20 篇映射预览）→ Execute → 进度轮询
+- 独立 option `gml_seo_migration_state`（autoload=false）记录 `{status, source_slug, total_posts, processed_posts, written_posts, skipped_posts, last_error, last_batch_at}`，不修改任何现有 `gml_seo` 字段
+- `GML_SEO_Migration_Manager` 状态机：`idle → scanning → scanned → running → completed / failed`
+- WP-Cron 批处理：每批 100 篇，批间 60 秒，`DOING_CRON` 或向导 AJAX nonce 双路径校验
+- 5 个 adapter 实现 `GML_SEO_Migration_Adapter` 接口：
+  - **Yoast**：9 个 post meta 映射，变量替换（`%%title%%` / `%%sitename%%` / `%%sep%%`）、长度截断（title 60 / desc 160 / og_title 70 / og_desc 160）、Twitter → OG 空值回退、`wpseo_titles.separator` 的 `sc-dash` 识别符转字符
+  - **Rank Math**：7 个 meta，`rank_math_focus_keyword` 取首项，`rank_math_robots` 数组含 `noindex` → 1
+  - **SEOPress**：7 个 meta，`_seopress_robots_index == 'yes'` → 1
+  - **AIOSEO**：双源合并 —— 优先 `{prefix}aioseo_posts` 表（SELECT 只读），为空回退到 `_aioseo_*` post meta；`keywords` JSON → CSV；`keyphrases.focus.keyphrase` 提取
+  - **The SEO Framework**：6 个 `_genesis_*` / `_open_graph_*` meta
+- **硬不变式**：所有 adapter 只读源数据（不 `update_*` / `delete_*` 源 meta / option / 自定义表），写入前检查 `_gml_seo_migrated_from` 实现幂等，`_gml_seo_migrated_at` 记录迁移时间。源插件数据 100% 保留，回滚安全
+- 向导 Execute 步骤必须勾选"我已备份数据库"复选框才能提交；前端 `last_batch_at` > 120 秒未更新时提示"WP-Cron 似乎未工作" + 手动触发按钮
+
+#### 🛡 防惩罚观察期 — `GML_SEO_Gradual_Mode_Manager`
+- 迁移完成时自动 `enter()`：`gml_seo[gradual_mode] = 1` + `gradual_entered_at`
+- AI 结果分流：`class-ai-engine.php::apply_result()` 首行委派 —— 观察期内 AI 结果只写 `_gml_seo_suggestion_*`（7 个 suggestion meta 键），不触碰 `_gml_seo_*` 前端键
+- 预优化：若 AI 核心 5 项与现值完全一致，`route_ai_result` 不写入 suggestion（避免 Metabox 骚扰）
+- Metabox 并排视图：`is_active() && (migrated_from || 任一 suggestion)` 时渲染"当前值 vs AI 建议" 5 项对比 + 分数差值 + "采纳 AI 建议"整篇按钮 + 单字段 Adopt 按钮
+- Bulk Optimize 双层门控：
+  - UI 层：`tab_bulk()` 首部检测到观察期时渲染解释性 notice + 指向 Settings 的退出链接，不渲染原有 UI
+  - AJAX 层：`gml_seo_bulk` 在 `check_ajax_referer` 后立即检查 `bulk_optimize_allowed()`，false 则返回 HTTP 403 JSON
+- AJAX 端点：`gml_seo_apply_suggestion`（整篇）、`gml_seo_apply_suggestion_field`（单字段）、`gml_seo_gradual_exit`。前两者要求 `edit_post($pid)` 能力，第三个要求 `manage_options`
+- Health Monitor 每周 cron 新增 digest 段：迁移总数 / 仍在使用迁移数据 / 已采纳 AI 建议及占比
+
+### Added — 新增文件（9 个）
+
+```
+includes/class-conflict-detector.php
+includes/class-migration-manager.php
+includes/class-gradual-mode-manager.php
+includes/migration/interface-migration-adapter.php
+includes/migration/class-yoast-adapter.php
+includes/migration/class-rankmath-adapter.php
+includes/migration/class-seopress-adapter.php
+includes/migration/class-aioseo-adapter.php
+includes/migration/class-seoframework-adapter.php
+assets/js/migration-wizard.js
+assets/css/migration-wizard.css
+tests/bootstrap-mock.php
+tests/integration/test-full-migration-flow.php
+tests/integration/test-v1.8.0-regression.php
+```
+
+### Changed — 对现有文件的定向扩展
+
+- `gml-seo.php` — `require_once` 9 个新文件；`activate()` 钩子初始化 `gml_seo_migration_state`（已存在则跳过）；`boot()` 中 `new GML_SEO_Migration_Manager()` 和 `GML_SEO_Gradual_Mode_Manager::init()`
+- `class-meta-tags.php` — 构造函数首行插入屏蔽守卫；`render_head()` / `document_title()` 内部二次保险判定
+- `class-admin.php` — 新增 `migration` tab、`render_conflict_notice` `admin_notices` 回调、`ajax_dismiss_conflict_notice`、`enqueue_assets`；`tab_bulk()` 首部观察期守卫
+- `class-ai-engine.php` — `apply_result()` 首行委派到 Gradual Mode Manager；`ajax_bulk` 首部观察期 403 守卫
+- `class-metabox.php` — `render()` 插入观察期并排视图；新增 `render_side_by_side()` 方法
+- `class-health-monitor.php` — `run_weekly_audit()` 尾部追加 gradual digest 日志行
+
+### Compatibility
+
+- **v1.8.0 → v1.9.0 无感升级**：未检测到竞争插件 + 未迁移 + 未进入观察期的站点，行为与 v1.8.0 完全一致（前端 `wp_head`、Metabox、Bulk Optimize tab、AI Engine auto-apply 四处都不引入任何新分支生效）。回归测试 `tests/integration/test-v1.8.0-regression.php` 保证
+- 新增的 post meta 前缀仅限 `_gml_seo_migrated_*` 和 `_gml_seo_suggestion_*`，不引入其它命名空间污染
+- 源插件任意 meta / option / 自定义表在迁移、回滚、用户重置的任何路径下 100% 保留
+
+### Tests
+
+- `tests/integration/test-full-migration-flow.php` — 覆盖 design §8.3 的 12 步端到端流程
+- `tests/integration/test-v1.8.0-regression.php` — 保证 v1.8.0 基线行为不变
+
 ## [1.8.0] - 2026-04-16
 
 ### Added — 4 项安全的性能优化（Lighthouse 友好）

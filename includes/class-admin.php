@@ -10,6 +10,9 @@ class GML_SEO_Admin {
     public function __construct() {
         add_action( 'admin_menu', [ $this, 'menu' ] );
         add_action( 'admin_init', [ $this, 'register' ] );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        add_action( 'admin_notices', [ $this, 'render_conflict_notice' ] );
+        add_action( 'wp_ajax_gml_seo_dismiss_conflict_notice', [ $this, 'ajax_dismiss_conflict_notice' ] );
     }
 
     public function menu() {
@@ -55,6 +58,7 @@ class GML_SEO_Admin {
                 <a href="?page=gml-seo&tab=performance" class="nav-tab <?php echo $tab === 'performance' ? 'nav-tab-active' : ''; ?>">⚡ Performance</a>
                 <a href="?page=gml-seo&tab=code" class="nav-tab <?php echo $tab === 'code' ? 'nav-tab-active' : ''; ?>">💉 Code Injection</a>
                 <a href="?page=gml-seo&tab=bulk" class="nav-tab <?php echo $tab === 'bulk' ? 'nav-tab-active' : ''; ?>">🚀 Bulk Optimize</a>
+                <a href="?page=gml-seo&tab=migration" class="nav-tab <?php echo $tab === 'migration' ? 'nav-tab-active' : ''; ?>">📦 Migration</a>
                 <a href="?page=gml-seo&tab=dashboard" class="nav-tab <?php echo $tab === 'dashboard' ? 'nav-tab-active' : ''; ?>">📊 Dashboard</a>
             </nav>
             <div style="margin-top:20px;">
@@ -65,6 +69,7 @@ class GML_SEO_Admin {
                 case 'performance': $this->tab_performance(); break;
                 case 'code':      $this->tab_code( $s ); break;
                 case 'bulk':      $this->tab_bulk(); break;
+                case 'migration': $this->tab_migration(); break;
                 case 'dashboard': $this->tab_dashboard(); break;
                 default:          $this->tab_settings( $s ); break;
             }
@@ -510,6 +515,30 @@ class GML_SEO_Admin {
     // ── Bulk Optimize Tab ────────────────────────────────────────────
 
     private function tab_bulk() {
+        // v1.9.0 anti-penalty observation period: replace the bulk UI with
+        // an explanatory notice. AJAX is separately blocked in class-ai-engine.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
+            $entered = GML_SEO::opt( 'gradual_entered_at', '' );
+            ?>
+            <div class="notice notice-warning" style="margin-top:20px;">
+                <h3 style="margin-top:10px;">🛡 <?php esc_html_e( 'Bulk Optimize is paused during the anti-penalty observation period.', 'gml-seo' ); ?></h3>
+                <?php if ( $entered ) : ?>
+                <p><?php printf( esc_html__( 'Migration completed on %s.', 'gml-seo' ), esc_html( $entered ) ); ?></p>
+                <?php endif; ?>
+                <p>
+                    <?php esc_html_e( 'Per the', 'gml-seo' ); ?>
+                    <a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide" target="_blank" rel="noopener">Google SEO Starter Guide</a>,
+                    <?php esc_html_e( 'large-scale meta rewrites right after a migration can look suspicious to Core Updates. Review each post in the editor instead and adopt AI suggestions field-by-field.', 'gml-seo' ); ?>
+                </p>
+                <p>
+                    <?php esc_html_e( 'When you\'re confident with the results, you can end the observation period in Settings and Bulk Optimize will come back.', 'gml-seo' ); ?>
+                </p>
+            </div>
+            <?php
+            return;
+        }
+
         if ( ! GML_SEO::has_ai_key() ) {
             echo '<div class="notice notice-warning"><p>⚠️ 请先在 Settings 标签页配置 AI API Key（Gemini 或 DeepSeek）。</p></div>';
             return;
@@ -695,5 +724,205 @@ class GML_SEO_Admin {
             </tbody>
         </table>
         <?php endif;
+    }
+
+    // ── Migration Tab (v1.9.0 — placeholder in Stage 0) ──────────────
+
+    /**
+     * Renders the Migration wizard tab.
+     *
+     * Server-side only emits the layout scaffold + a localized payload.
+     * All real interaction (Scan → Preview → Execute → progress polling)
+     * lives in `assets/js/migration-wizard.js`.
+     *
+     * @since 1.9.0
+     */
+    private function tab_migration() {
+        $detected = [];
+        $state    = [];
+        if ( class_exists( 'GML_SEO_Conflict_Detector' ) ) {
+            $detected = GML_SEO_Conflict_Detector::scan();
+        }
+        if ( class_exists( 'GML_SEO_Migration_Manager' ) ) {
+            $state = GML_SEO_Migration_Manager::get_state();
+        }
+
+        $slugs = [
+            'yoast'        => 'Yoast SEO',
+            'rankmath'     => 'Rank Math',
+            'seopress'     => 'SEOPress',
+            'aioseo'       => 'All in One SEO',
+            'seoframework' => 'The SEO Framework',
+        ];
+        $detected_slugs = array_column( $detected, 'slug' );
+
+        // Localize config for the wizard JS.
+        wp_localize_script(
+            'gml-seo-migration-wizard',
+            'gmlSeoMigration',
+            [
+                'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+                'nonce'         => wp_create_nonce( 'gml_seo_migration' ),
+                'slugs'         => $slugs,
+                'detectedSlugs' => $detected_slugs,
+                'initialState'  => $state,
+                'pollInterval'  => 5000,
+                'staleAfter'    => 120,
+                'i18n'          => [
+                    'step1'        => __( 'Step 1 — Scan', 'gml-seo' ),
+                    'step2'        => __( 'Step 2 — Preview (first 20 posts)', 'gml-seo' ),
+                    'step3'        => __( 'Step 3 — Execute', 'gml-seo' ),
+                    'step4'        => __( 'Step 4 — Progress', 'gml-seo' ),
+                    'scanBtn'      => __( 'Scan', 'gml-seo' ),
+                    'previewBtn'   => __( 'Preview', 'gml-seo' ),
+                    'executeBtn'   => __( 'Start migration', 'gml-seo' ),
+                    'backupCheck'  => __( 'I have backed up my database and understand this cannot be automatically undone.', 'gml-seo' ),
+                    'cronStalled'  => __( 'WP-Cron doesn\'t seem to be running. You can manually trigger the next batch.', 'gml-seo' ),
+                    'triggerNext'  => __( 'Trigger next batch', 'gml-seo' ),
+                    'postsCounted' => __( '{n} posts detected', 'gml-seo' ),
+                    'progressFmt'  => __( '{processed} / {total} processed — {written} written, {skipped} skipped', 'gml-seo' ),
+                    'completed'    => __( 'Migration complete — entering the anti-penalty observation period.', 'gml-seo' ),
+                    'pickSource'   => __( 'Pick a source plugin', 'gml-seo' ),
+                ],
+            ]
+        );
+        ?>
+        <h2>📦 <?php esc_html_e( 'Migrate from another SEO plugin', 'gml-seo' ); ?></h2>
+        <p>
+            <?php esc_html_e( 'The wizard moves hand-tuned meta (title, description, OG, canonical, noindex, keywords) from Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework into GML AI SEO\'s own keys. Source data is never deleted.', 'gml-seo' ); ?>
+            <a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide" target="_blank" rel="noopener">
+                <?php esc_html_e( 'Google SEO Starter Guide', 'gml-seo' ); ?>
+            </a>.
+        </p>
+        <div id="gml-seo-migration-root" class="gml-seo-migration-wizard"></div>
+        <?php
+    }
+
+    // ── Asset Enqueuing ──────────────────────────────────────────────
+
+    /**
+     * Enqueue GML AI SEO admin-side page assets.
+     *
+     * Currently only registers the migration-wizard JS/CSS shells, and
+     * only on the Migration tab. Other tabs use inline scripts — left
+     * unchanged to preserve v1.8.0 behaviour.
+     *
+     * @param string $hook Current admin page slug.
+     * @since 1.9.0
+     */
+    public function enqueue_assets( $hook ) {
+        // Only target our plugin page.
+        if ( strpos( (string) $hook, 'gml-seo' ) === false ) {
+            return;
+        }
+
+        $current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+        if ( $current_tab !== 'migration' ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'gml-seo-migration-wizard',
+            GML_SEO_URL . 'assets/css/migration-wizard.css',
+            [],
+            GML_SEO_VER
+        );
+
+        wp_enqueue_script(
+            'gml-seo-migration-wizard',
+            GML_SEO_URL . 'assets/js/migration-wizard.js',
+            [],
+            GML_SEO_VER,
+            true
+        );
+    }
+
+    // ── Conflict Notice (v1.9.0) ─────────────────────────────────────
+
+    /**
+     * Render a persistent admin_notice when a competing SEO plugin is
+     * detected, migration isn't completed, and the user hasn't dismissed it.
+     *
+     * Rendered on all admin pages EXCEPT the Migration wizard tab itself
+     * (to avoid showing the "go to migration wizard" CTA while the user
+     * is already on it).
+     *
+     * @since 1.9.0
+     */
+    public function render_conflict_notice() {
+        if ( ! class_exists( 'GML_SEO_Conflict_Detector' ) ) {
+            return;
+        }
+
+        $ctx = GML_SEO_Conflict_Detector::get_notice_context();
+        if ( empty( $ctx['detected'] ) || $ctx['migrated'] || $ctx['dismissed'] ) {
+            return;
+        }
+
+        // Skip on the migration wizard itself.
+        $page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+        $tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : '';
+        if ( $page === 'gml-seo' && $tab === 'migration' ) {
+            return;
+        }
+
+        $nonce  = wp_create_nonce( 'gml_seo_admin' );
+        $cta    = admin_url( 'admin.php?page=gml-seo&tab=migration' );
+        $joined = implode( ', ', array_map( 'esc_html', $ctx['detected'] ) );
+        ?>
+        <div class="notice notice-warning is-dismissible gml-seo-conflict-notice"
+             data-nonce="<?php echo esc_attr( $nonce ); ?>">
+            <p>
+                <strong><?php esc_html_e( 'GML AI SEO detected a competing SEO plugin:', 'gml-seo' ); ?></strong>
+                <?php echo $joined; // already escaped ?>
+            </p>
+            <p>
+                <?php esc_html_e( 'To avoid duplicate <title>, meta description and canonical tags, GML AI SEO is currently holding back its frontend meta output. Run the migration wizard to safely move your hand-tuned meta into GML AI SEO.', 'gml-seo' ); ?>
+            </p>
+            <p>
+                <a href="<?php echo esc_url( $cta ); ?>" class="button button-primary">
+                    <?php esc_html_e( 'Go to Migration Wizard', 'gml-seo' ); ?>
+                </a>
+            </p>
+        </div>
+        <script>
+        ( function () {
+            var notice = document.querySelector( '.gml-seo-conflict-notice' );
+            if ( ! notice ) return;
+            notice.addEventListener( 'click', function ( e ) {
+                var btn = e.target.closest( '.notice-dismiss' );
+                if ( ! btn ) return;
+                var fd = new FormData();
+                fd.append( 'action', 'gml_seo_dismiss_conflict_notice' );
+                fd.append( 'nonce', notice.dataset.nonce );
+                fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } );
+            } );
+        } )();
+        </script>
+        <?php
+    }
+
+    /**
+     * AJAX: gml_seo_dismiss_conflict_notice.
+     *
+     * Persists `gml_seo[conflict_notice_dismissed] = 1` so the notice
+     * stops showing until the value is manually cleared.
+     *
+     * @since 1.9.0
+     */
+    public function ajax_dismiss_conflict_notice() {
+        check_ajax_referer( 'gml_seo_admin', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+        }
+
+        $opts                              = get_option( 'gml_seo', [] );
+        if ( ! is_array( $opts ) ) {
+            $opts = [];
+        }
+        $opts['conflict_notice_dismissed'] = 1;
+        update_option( 'gml_seo', $opts );
+
+        wp_send_json_success();
     }
 }

@@ -12,6 +12,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class GML_SEO_Meta_Tags {
 
     public function __construct() {
+        // v1.9.0 conflict guard: if a competing SEO plugin is active and
+        // migration isn't completed, skip all meta output so we don't
+        // emit duplicate <title>/description/canonical/OG/Twitter tags.
+        // See design.md §6.5 and requirements §2.1–§2.4.
+        if ( class_exists( 'GML_SEO_Conflict_Detector' )
+             && GML_SEO_Conflict_Detector::should_suppress_meta_output() ) {
+            return;
+        }
+
         // Title tag
         add_filter( 'pre_get_document_title', [ $this, 'document_title' ], 20 );
         add_theme_support( 'title-tag' );
@@ -29,6 +38,14 @@ class GML_SEO_Meta_Tags {
     // ── Title ────────────────────────────────────────────────────────
 
     public function document_title( $title ) {
+        // Defensive second-line-of-defence conflict guard. The constructor
+        // should already have skipped hook registration, but if any caller
+        // invokes us directly we still honour the suppression condition.
+        if ( class_exists( 'GML_SEO_Conflict_Detector' )
+             && GML_SEO_Conflict_Detector::should_suppress_meta_output() ) {
+            return $title;
+        }
+
         if ( is_singular() ) {
             $id  = get_queried_object_id();
             $seo = get_post_meta( $id, '_gml_seo_title', true );
@@ -60,6 +77,12 @@ class GML_SEO_Meta_Tags {
     // ── Head meta ────────────────────────────────────────────────────
 
     public function render_head() {
+        // Defensive second-line-of-defence conflict guard (see constructor).
+        if ( class_exists( 'GML_SEO_Conflict_Detector' )
+             && GML_SEO_Conflict_Detector::should_suppress_meta_output() ) {
+            return;
+        }
+
         $id = is_singular() ? get_queried_object_id() : 0;
 
         // Detect if we're on a GML Translate language-prefixed page

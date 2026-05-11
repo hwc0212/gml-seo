@@ -42,6 +42,18 @@ class GML_SEO_Metabox {
         ];
         ?>
         <div id="gml-seo-box-inner" data-post-id="<?php echo $post->ID; ?>">
+        <?php
+        // v1.9.0 Gradual Mode: render the side-by-side "migrated vs suggestion" block
+        // before the usual fields. The block only renders when the observation
+        // period is active AND the post actually carries migration or suggestion data.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
+            $sbs = GML_SEO_Gradual_Mode_Manager::get_side_by_side( (int) $post->ID );
+            if ( ! empty( $sbs['migrated_from'] ) || ! empty( $sbs['has_suggestion'] ) ) {
+                $this->render_side_by_side( (int) $post->ID, $sbs );
+            }
+        }
+        ?>
         <?php if ( ! $has_key ) : ?>
             <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 AI API Key</a>（Gemini 或 DeepSeek），AI 才能自动优化 SEO。</p>
         <?php endif; ?>
@@ -251,5 +263,129 @@ class GML_SEO_Metabox {
             <p style="font-size:12px;color:#999;">⚠️ 修改已发布页面的 URL 可能影响已有的外链和排名。如果页面已被搜索引擎收录，建议设置 301 重定向。</p>
         </div>
         <?php endif;
+    }
+
+    // ── v1.9.0 Gradual Mode: side-by-side view ────────────────────────
+
+    /**
+     * Render the "migrated vs AI suggestion" side-by-side block.
+     *
+     * Only called when the observation period is active and the post
+     * has at least one of migration / suggestion data.
+     *
+     * @param int   $post_id Post ID.
+     * @param array $sbs     Payload from Gradual_Mode_Manager::get_side_by_side().
+     */
+    public function render_side_by_side( $post_id, $sbs ) {
+        $labels = [
+            'title'    => __( 'SEO 标题', 'gml-seo' ),
+            'desc'     => __( 'Meta 描述', 'gml-seo' ),
+            'og_title' => __( 'OG 标题', 'gml-seo' ),
+            'og_desc'  => __( 'OG 描述', 'gml-seo' ),
+            'keywords' => __( '关键词', 'gml-seo' ),
+        ];
+        $score_cur = (int) ( $sbs['scores']['current'] ?? 0 );
+        $score_sug = (int) ( $sbs['scores']['suggestion'] ?? 0 );
+        $delta     = $score_sug - $score_cur;
+        ?>
+        <div class="gml-seo-sbs" style="border:1px solid #2271b1;border-radius:6px;padding:14px 16px;margin-bottom:16px;background:#f6fbff;">
+            <h3 style="margin-top:0;">🛡 <?php esc_html_e( 'Anti-Penalty Observation Period', 'gml-seo' ); ?></h3>
+            <p style="color:#555;font-size:13px;">
+                <?php if ( ! empty( $sbs['migrated_from'] ) ) : ?>
+                    📦 <?php printf( esc_html__( 'This post was migrated from %s on %s.', 'gml-seo' ),
+                        '<strong>' . esc_html( $sbs['migrated_from'] ) . '</strong>',
+                        esc_html( $sbs['migrated_at'] ) ); ?>
+                <?php endif; ?>
+                <?php if ( ! empty( $sbs['has_suggestion'] ) ) : ?>
+                    ✨ <?php printf( esc_html__( 'AI suggestion generated at %s.', 'gml-seo' ),
+                        esc_html( $sbs['suggestion_at'] ) ); ?>
+                <?php endif; ?>
+            </p>
+
+            <?php if ( ! empty( $sbs['has_suggestion'] ) ) : ?>
+                <table class="widefat" style="margin-top:10px;">
+                    <thead>
+                        <tr>
+                            <th style="width:120px;"><?php esc_html_e( 'Field', 'gml-seo' ); ?></th>
+                            <th><?php esc_html_e( 'Current (migrated)', 'gml-seo' ); ?></th>
+                            <th><?php esc_html_e( 'AI Suggestion', 'gml-seo' ); ?></th>
+                            <th style="width:130px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ( $labels as $key => $label ) :
+                        $pair = $sbs['fields'][ $key ] ?? [ 'current' => '', 'suggestion' => '' ];
+                    ?>
+                        <tr>
+                            <th><?php echo esc_html( $label ); ?></th>
+                            <td><?php echo esc_html( $pair['current'] ); ?></td>
+                            <td style="color:#2271b1;"><?php echo esc_html( $pair['suggestion'] ); ?></td>
+                            <td>
+                                <?php if ( $pair['suggestion'] !== '' && $pair['suggestion'] !== $pair['current'] ) : ?>
+                                    <button type="button"
+                                            class="button gml-seo-sbs-apply-field"
+                                            data-field="<?php echo esc_attr( $key ); ?>"
+                                            data-post="<?php echo (int) $post_id; ?>">
+                                        <?php esc_html_e( 'Adopt', 'gml-seo' ); ?>
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <p style="margin-top:12px;">
+                    <?php printf(
+                        esc_html__( 'Score: current %1$d → suggestion %2$d (%3$s%4$d)', 'gml-seo' ),
+                        $score_cur,
+                        $score_sug,
+                        $delta >= 0 ? '+' : '',
+                        $delta
+                    ); ?>
+                </p>
+
+                <p>
+                    <button type="button"
+                            class="button button-primary gml-seo-sbs-apply-all"
+                            data-post="<?php echo (int) $post_id; ?>">
+                        <?php esc_html_e( 'Adopt all AI suggestions', 'gml-seo' ); ?>
+                    </button>
+                </p>
+
+                <script>
+                ( function () {
+                    var nonce = '<?php echo esc_js( wp_create_nonce( 'gml_seo_nonce' ) ); ?>';
+                    function post( action, data, cb ) {
+                        var fd = new FormData();
+                        fd.append( 'action', action );
+                        fd.append( 'nonce', nonce );
+                        Object.keys( data || {} ).forEach( function ( k ) { fd.append( k, data[ k ] ); } );
+                        fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                            .then( function ( r ) { return r.json(); } )
+                            .then( cb );
+                    }
+                    document.querySelectorAll( '.gml-seo-sbs-apply-field' ).forEach( function ( btn ) {
+                        btn.addEventListener( 'click', function () {
+                            btn.disabled = true;
+                            post( 'gml_seo_apply_suggestion_field', {
+                                post_id: btn.dataset.post,
+                                field:   btn.dataset.field,
+                            }, function () { window.location.reload(); } );
+                        } );
+                    } );
+                    document.querySelectorAll( '.gml-seo-sbs-apply-all' ).forEach( function ( btn ) {
+                        btn.addEventListener( 'click', function () {
+                            btn.disabled = true;
+                            post( 'gml_seo_apply_suggestion', {
+                                post_id: btn.dataset.post,
+                            }, function () { window.location.reload(); } );
+                        } );
+                    } );
+                } )();
+                </script>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 }

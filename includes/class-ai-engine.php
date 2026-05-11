@@ -384,6 +384,14 @@ PROMPT;
     // ── Auto-apply AI results ────────────────────────────────────────
 
     private function apply_result( $post_id, $post, $result ) {
+        // v1.9.0 anti-penalty observation period: route the AI result into
+        // the suggestion channel and return without touching frontend meta.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
+            GML_SEO_Gradual_Mode_Manager::route_ai_result( (int) $post_id, (array) $result );
+            return;
+        }
+
         // Core SEO meta — always apply
         $meta_map = [
             'title'    => '_gml_seo_title',
@@ -533,6 +541,16 @@ PROMPT;
     public function ajax_bulk() {
         check_ajax_referer( 'gml_seo_bulk' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        // v1.9.0 anti-penalty observation period: reject bulk optimisation
+        // while gradual_mode is on. See requirements §14.2.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && ! GML_SEO_Gradual_Mode_Manager::bulk_optimize_allowed() ) {
+            wp_send_json_error(
+                [ 'message' => 'Bulk Optimize is disabled during the anti-penalty observation period.' ],
+                403
+            );
+        }
 
         $pid    = absint( $_POST['post_id'] ?? 0 );
 

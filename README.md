@@ -4,6 +4,8 @@
 
 专为 2025 AI Overviews / AI Mode / Helpful Content System（HCS）时代设计。
 
+> **v1.9.0 新增：** 从 Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework 无损迁移。冲突检测层防止双插件输出重复 meta；四步向导 + WP-Cron 批处理把手调过的 meta 搬到 GML 命名空间（源数据 100% 保留）；迁移完成自动进入防惩罚观察期，AI 结果改走建议通道，Metabox 并排对比让你逐篇采纳。详见 [CHANGELOG](CHANGELOG.md#190---2026-05-08)。
+
 ## 核心理念
 
 **SEO 不是发布时填一次就完事的事情 —— 它是一份持续的维护工作。**

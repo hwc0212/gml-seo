@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,14 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.9.0 =
+* Added: **SEO Plugin Migration** — safely take over sites that already run Yoast SEO / Rank Math / SEOPress / AIOSEO / The SEO Framework. Three layers of protection:
+  * **Conflict Detector** (read-only) identifies competing SEO plugins and suppresses GML's frontend meta output so no duplicate `<title>`, description or canonical tags are emitted.
+  * **Migration wizard** (Scan → Preview → Execute → Progress) moves hand-tuned meta into GML's `_gml_seo_*` namespace. WP-Cron-backed batching (100 posts per batch). Source data is never deleted.
+  * **Anti-penalty observation period** (Gradual Mode) auto-engages on completion. AI results are routed to `_gml_seo_suggestion_*` instead of overwriting frontend meta, Metabox shows a "migrated vs AI suggestion" side-by-side view, Bulk Optimize is blocked by both UI and AJAX checks. Exit anytime from Settings.
+* Follows [Google SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide) and [Google Search Essentials](https://developers.google.com/search/docs/essentials).
+* New option `gml_seo_migration_state` tracks migration status. No existing `gml_seo` option fields are modified.
+
 = 1.8.0 =
 * Added: 4 safe performance optimizations — Google Fonts font-display: swap auto-applied, HTML output minification (skips pre/textarea/script/style/code), HTTP Link: preload headers for HTTP/2 Early Hints, disable rarely-used oEmbed REST endpoints.
 * Performance tab updated to show the 4 new optimizations with 🆕 marker.
@@ -196,6 +204,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.9.0 =
+Safely migrate from Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework with a guided wizard. Conflict detection suppresses duplicate meta tags until migration is finished. An anti-penalty observation period engages automatically after migration to prevent Google Core Update surprises.
 
 = 1.7.3 =
 Fixes false-positive "standalone GML Translate is running" warning after uninstalling the standalone plugin.

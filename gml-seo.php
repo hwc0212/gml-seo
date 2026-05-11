@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: All-in-one AI SEO automation + multilingual translation. AI weekly audits every page, re-optimizes stale content, pushes changes to Google / Bing in real time, and translates your site with destination-language SEO awareness (not literal translation). Built for 2025 AI Overviews and Helpful Content System.
- * Version: 1.8.0
+ * Version: 1.9.0
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.8.0' );
+define( 'GML_SEO_VER', '1.9.0' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -44,6 +44,17 @@ final class GML_SEO {
         require_once GML_SEO_DIR . 'includes/class-health-monitor.php';
         require_once GML_SEO_DIR . 'includes/class-indexing.php';
         require_once GML_SEO_DIR . 'includes/class-translate-bootstrap.php';
+
+        // Stage 0: SEO Plugin Migration skeletons (v1.9.0)
+        require_once GML_SEO_DIR . 'includes/migration/interface-migration-adapter.php';
+        require_once GML_SEO_DIR . 'includes/class-conflict-detector.php';
+        require_once GML_SEO_DIR . 'includes/class-migration-manager.php';
+        require_once GML_SEO_DIR . 'includes/class-gradual-mode-manager.php';
+        require_once GML_SEO_DIR . 'includes/migration/class-yoast-adapter.php';
+        require_once GML_SEO_DIR . 'includes/migration/class-rankmath-adapter.php';
+        require_once GML_SEO_DIR . 'includes/migration/class-seopress-adapter.php';
+        require_once GML_SEO_DIR . 'includes/migration/class-aioseo-adapter.php';
+        require_once GML_SEO_DIR . 'includes/migration/class-seoframework-adapter.php';
 
         // Load the bundled translate module (registers autoloader + constants)
         GML_SEO_Translate_Bootstrap::load();
@@ -88,6 +99,15 @@ final class GML_SEO {
         GML_SEO_Translate_Bootstrap::install();
         // Auto-deactivate the standalone GML Translate if present
         GML_SEO_Translate_Bootstrap::maybe_deactivate_standalone();
+
+        // v1.9.0: Initialize migration state if missing (never overwrite existing).
+        if ( ! get_option( GML_SEO_Migration_Manager::OPTION_KEY ) ) {
+            update_option(
+                GML_SEO_Migration_Manager::OPTION_KEY,
+                GML_SEO_Migration_Manager::default_state(),
+                false  // autoload=false
+            );
+        }
     }
 
     public function boot() {
@@ -106,6 +126,12 @@ final class GML_SEO {
         new GML_SEO_Auto_Link();
         new GML_SEO_Health_Monitor();
         new GML_SEO_Indexing();
+
+        // v1.9.0: Register Migration Manager (AJAX + cron hook).
+        new GML_SEO_Migration_Manager();
+
+        // v1.9.0: Register Gradual Mode Manager AJAX endpoints.
+        GML_SEO_Gradual_Mode_Manager::init();
 
         // Initialize bundled translate module
         GML_SEO_Translate_Bootstrap::init();
