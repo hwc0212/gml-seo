@@ -24,24 +24,48 @@ class GML_SEO_Admin {
     }
 
     public function sanitize( $in ) {
-        $o = [];
-        $o['engine']          = in_array( $in['engine'] ?? '', [ 'gemini', 'deepseek' ] ) ? $in['engine'] : 'gemini';
-        $o['gemini_key']      = sanitize_text_field( $in['gemini_key'] ?? '' );
-        $o['model']           = sanitize_text_field( $in['model'] ?? 'gemini-2.5-flash' );
-        $o['deepseek_key']    = sanitize_text_field( $in['deepseek_key'] ?? '' );
-        $o['deepseek_model']  = sanitize_text_field( $in['deepseek_model'] ?? 'deepseek-chat' );
-        $o['deepseek_base_url'] = esc_url_raw( $in['deepseek_base_url'] ?? 'https://api.deepseek.com' );
-        $o['ga_id']           = sanitize_text_field( $in['ga_id'] ?? '' );
-        $o['gtm_id']          = sanitize_text_field( $in['gtm_id'] ?? '' );
-        $o['adsense_id']      = sanitize_text_field( $in['adsense_id'] ?? '' );
-        $o['head_code']       = $in['head_code'] ?? '';
-        $o['body_code']       = $in['body_code'] ?? '';
-        $o['footer_code']     = $in['footer_code'] ?? '';
-        $o['site_name']       = sanitize_text_field( $in['site_name'] ?? get_bloginfo( 'name' ) );
-        $o['separator']       = sanitize_text_field( $in['separator'] ?? '-' );
-        $o['audit_frequency'] = in_array( $in['audit_frequency'] ?? '', [ 'weekly', 'daily', 'monthly', 'disabled' ] ) ? $in['audit_frequency'] : 'weekly';
-        $o['indexnow_enabled']       = ! empty( $in['indexnow_enabled'] ) ? 1 : 0;
-        $o['google_service_account'] = trim( $in['google_service_account'] ?? '' );
+        // Start from the existing option so we preserve fields NOT managed
+        // by the current form (e.g. gradual_mode, gradual_entered_at,
+        // gradual_exited_at, conflict_notice_dismissed, and the perf_*
+        // toggles when another tab is the one submitting).
+        $old = get_option( 'gml_seo', [] );
+        if ( ! is_array( $old ) ) {
+            $old = [];
+        }
+        $o = $old;
+
+        $o['engine']            = in_array( $in['engine'] ?? '', [ 'gemini', 'deepseek' ] ) ? $in['engine'] : ( $old['engine'] ?? 'gemini' );
+        $o['gemini_key']        = isset( $in['gemini_key'] ) ? sanitize_text_field( $in['gemini_key'] ) : ( $old['gemini_key'] ?? '' );
+        $o['model']             = isset( $in['model'] ) ? sanitize_text_field( $in['model'] ) : ( $old['model'] ?? 'gemini-2.5-flash' );
+        $o['deepseek_key']      = isset( $in['deepseek_key'] ) ? sanitize_text_field( $in['deepseek_key'] ) : ( $old['deepseek_key'] ?? '' );
+        $o['deepseek_model']    = isset( $in['deepseek_model'] ) ? sanitize_text_field( $in['deepseek_model'] ) : ( $old['deepseek_model'] ?? 'deepseek-chat' );
+        $o['deepseek_base_url'] = isset( $in['deepseek_base_url'] ) ? esc_url_raw( $in['deepseek_base_url'] ) : ( $old['deepseek_base_url'] ?? 'https://api.deepseek.com' );
+        $o['ga_id']             = isset( $in['ga_id'] ) ? sanitize_text_field( $in['ga_id'] ) : ( $old['ga_id'] ?? '' );
+        $o['gtm_id']            = isset( $in['gtm_id'] ) ? sanitize_text_field( $in['gtm_id'] ) : ( $old['gtm_id'] ?? '' );
+        $o['adsense_id']        = isset( $in['adsense_id'] ) ? sanitize_text_field( $in['adsense_id'] ) : ( $old['adsense_id'] ?? '' );
+        $o['head_code']         = $in['head_code'] ?? ( $old['head_code'] ?? '' );
+        $o['body_code']         = $in['body_code'] ?? ( $old['body_code'] ?? '' );
+        $o['footer_code']       = $in['footer_code'] ?? ( $old['footer_code'] ?? '' );
+        $o['site_name']         = isset( $in['site_name'] ) ? sanitize_text_field( $in['site_name'] ) : ( $old['site_name'] ?? get_bloginfo( 'name' ) );
+        $o['separator']         = isset( $in['separator'] ) ? sanitize_text_field( $in['separator'] ) : ( $old['separator'] ?? '-' );
+        $o['audit_frequency']   = in_array( $in['audit_frequency'] ?? '', [ 'weekly', 'daily', 'monthly', 'disabled' ] ) ? $in['audit_frequency'] : ( $old['audit_frequency'] ?? 'weekly' );
+
+        // Automation tab checkbox + textarea (only when Automation submitted).
+        if ( ! empty( $in['__automation_submitted'] ) ) {
+            $o['indexnow_enabled']       = ! empty( $in['indexnow_enabled'] ) ? 1 : 0;
+            $o['google_service_account'] = trim( $in['google_service_account'] ?? '' );
+        } else {
+            $o['indexnow_enabled']       = isset( $in['indexnow_enabled'] ) ? ( ! empty( $in['indexnow_enabled'] ) ? 1 : 0 ) : ( $old['indexnow_enabled'] ?? 1 );
+            $o['google_service_account'] = isset( $in['google_service_account'] ) ? trim( $in['google_service_account'] ) : ( $old['google_service_account'] ?? '' );
+        }
+
+        // Performance tab toggles (only touch when Performance tab submitted).
+        if ( class_exists( 'GML_SEO_Performance' ) && ! empty( $in['__perf_submitted'] ) ) {
+            foreach ( GML_SEO_Performance::all_keys() as $key ) {
+                $o[ $key ] = ! empty( $in[ $key ] ) ? 1 : 0;
+            }
+        }
+
         return $o;
     }
 
@@ -162,6 +186,60 @@ class GML_SEO_Admin {
             </table>
             <?php submit_button( '保存设置' ); ?>
         </form>
+
+        <?php
+        // v1.9.0: Gradual Mode (anti-penalty observation period) exit control.
+        if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
+             && GML_SEO_Gradual_Mode_Manager::is_active() ) :
+            $entered = GML_SEO::opt( 'gradual_entered_at', '' );
+            $exit_nonce = wp_create_nonce( 'gml_seo_admin' );
+        ?>
+        <hr style="margin:32px 0;">
+        <h2>🛡 防惩罚观察期</h2>
+        <div class="notice notice-info inline" style="padding:14px 16px;">
+            <p>
+                <strong>观察期正在运行。</strong>
+                <?php if ( $entered ) : ?>迁移完成于 <?php echo esc_html( $entered ); ?>。<?php endif; ?>
+            </p>
+            <p>
+                期间 AI 不会自动覆盖你的 meta — 新建议写入 suggestion 通道，在文章编辑页并排显示供你逐篇采纳；Bulk Optimize 被禁用。
+                遵循 <a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide" target="_blank" rel="noopener">Google SEO Starter Guide</a>，避免 Core Update 对全站大规模变动做出惩罚性反应。
+            </p>
+            <p>
+                <button type="button" class="button button-secondary" id="gml-seo-gradual-exit-btn">
+                    退出观察期 · 恢复 Bulk Optimize
+                </button>
+                <span id="gml-seo-gradual-exit-msg" style="margin-left:10px;color:#00a32a;display:none;"></span>
+            </p>
+        </div>
+        <script>
+        ( function () {
+            var btn = document.getElementById( 'gml-seo-gradual-exit-btn' );
+            if ( ! btn ) return;
+            btn.addEventListener( 'click', function () {
+                if ( ! confirm( '确认退出观察期？退出后 AI 结果将恢复直接覆盖 _gml_seo_* 字段，Bulk Optimize 也会恢复可用。' ) ) return;
+                btn.disabled = true;
+                var fd = new FormData();
+                fd.append( 'action', 'gml_seo_gradual_exit' );
+                fd.append( 'nonce', '<?php echo esc_js( $exit_nonce ); ?>' );
+                fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                    .then( function ( r ) { return r.json(); } )
+                    .then( function ( res ) {
+                        var msg = document.getElementById( 'gml-seo-gradual-exit-msg' );
+                        if ( res && res.success ) {
+                            msg.textContent = '✓ 已退出观察期，刷新页面中…';
+                            msg.style.display = '';
+                            setTimeout( function () { window.location.reload(); }, 800 );
+                        } else {
+                            btn.disabled = false;
+                            alert( '退出失败：' + ( res && res.data && res.data.message ? res.data.message : '未知错误' ) );
+                        }
+                    } );
+            } );
+        } )();
+        </script>
+        <?php endif; ?>
+
         <script>
         document.getElementById('gml-seo-engine').addEventListener('change', function(){
             var v = this.value;
@@ -274,6 +352,7 @@ class GML_SEO_Admin {
 
         <form method="post" action="options.php">
             <?php settings_fields( 'gml_seo_group' ); ?>
+            <input type="hidden" name="gml_seo[__automation_submitted]" value="1">
             <?php
             // Preserve all other settings
             $preserve = [ 'engine', 'gemini_key', 'model', 'deepseek_key', 'deepseek_model',
@@ -403,52 +482,75 @@ class GML_SEO_Admin {
     // ── Performance Tab ──────────────────────────────────────────────
 
     private function tab_performance() {
-        $checks = [
-            [ '🟢', '移除 Emoji 脚本和样式', '节省 ~10KB，WordPress 默认加载的 emoji 检测脚本对绝大多数网站无用。', 'always' ],
-            [ '🟢', '移除 Dashicons CSS（未登录用户）', '节省 ~46KB，Dashicons 是后台图标字体，前端访客不需要。', 'always' ],
-            [ '🟢', '移除 oEmbed 嵌入脚本', '节省 ~6KB，wp-embed.min.js 用于嵌入预览，大多数网站不需要。', 'always' ],
-            [ '🟢', '移除 RSD/WLW/Shortlink/REST 链接', '清理 <head> 中的无用 link 标签，减少 HTML 体积。', 'always' ],
-            [ '🟢', '隐藏 WordPress 版本号', '移除 <meta name="generator"> 标签，安全 + 减少信息泄露。', 'always' ],
-            [ '🟢', '禁用 XML-RPC', '关闭 xmlrpc.php 端点，防止暴力破解攻击，无 SEO 影响。', 'always' ],
-            [ '🟢', '禁用自我 Pingback', '防止 WordPress 向自己发送 pingback，浪费服务器资源。', 'always' ],
-            [ '🟢', '移除 Gutenberg 全局样式', '移除未使用的 Gutenberg 块库内联 CSS。', 'always' ],
-            [ '🟢', 'Defer 非关键 JavaScript', 'Google Lighthouse 建议：消除渲染阻塞资源。自动跳过 jQuery 等关键脚本。', 'always' ],
-            [ '🟢', '图片 Lazy Loading', '首屏前 2 张图片正常加载，其余添加 loading="lazy"，减少初始请求。', 'always' ],
-            [ '🟢', '自动补全图片 width/height', 'Google Core Web Vitals: 防止 CLS（累积布局偏移），图片加载时不会导致页面跳动。', 'always' ],
-            [ '🟢', 'iframe Lazy Loading', 'YouTube、Google Maps 等 iframe 添加 loading="lazy"，减少初始加载。', 'always' ],
-            [ '🟢', '首图 fetchpriority="high"', 'Google LCP 优化：告诉浏览器优先加载第一张内容图片。', 'always' ],
-            [ '🟢', 'Preload 特色图片', '在 <head> 中 preload 文章特色图片，加速 LCP（最大内容绘制）。', 'always' ],
-            [ '🟢', '自动 Preconnect 外部域名', '检测 Google Fonts、GA、GTM 等外部资源，提前建立连接减少延迟。', 'always' ],
-            [ '🟢', 'DNS Prefetch', '对 Gravatar 等外部域名提前做 DNS 解析。', 'always' ],
-            [ '🆕', 'Google Fonts font-display: swap', 'Google Lighthouse："Ensure text remains visible during webfont load"。自动给 Google Fonts URL 加 display=swap，字体加载时先用系统字体显示，避免不可见文字。', 'always' ],
-            [ '🆕', 'HTML 输出压缩', '移除多余空白、HTML 注释（保留条件注释），HTML 体积减少 5-15%。智能跳过 <pre>、<textarea>、<script>、<style>、<code> 内部。', 'always' ],
-            [ '🆕', 'HTTP Link 预加载头', '把 <link rel="preload"> 和 preconnect 同时以 HTTP Link 头发送，支持 HTTP/2 Early Hints（Cloudflare / Fastly 会转为 103 状态，浏览器能在 HTML 还未完整到达时就开始连接）。', 'always' ],
-            [ '🆕', '禁用 oEmbed REST 端点', '/wp-json/oembed/* 几乎无人使用但被机器人频繁爬取，禁用可减少服务器 CPU 压力。', 'always' ],
-        ];
+        $s = get_option( 'gml_seo', [] );
+        if ( ! is_array( $s ) ) $s = [];
+
+        $preserve = [ 'engine', 'gemini_key', 'model', 'deepseek_key', 'deepseek_model',
+            'deepseek_base_url', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
+            'footer_code', 'site_name', 'separator', 'audit_frequency',
+            'indexnow_enabled', 'google_service_account' ];
         ?>
-        <h2>⚡ 性能优化状态</h2>
-        <p>以下优化已自动启用，遵循 <a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide" target="_blank">Google SEO 指南</a> 和 <a href="https://web.dev/vitals/" target="_blank">Core Web Vitals</a> 最佳实践。所有优化都是安全的，不会破坏网站功能。</p>
+        <h2>⚡ 性能优化</h2>
+        <p>
+            遵循 <a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide" target="_blank" rel="noopener">Google SEO 指南</a>
+            和 <a href="https://web.dev/vitals/" target="_blank" rel="noopener">Core Web Vitals</a> 最佳实践。
+            所有优化默认启用，遇到主题 / 插件冲突时可以按项关闭。
+        </p>
 
-        <table class="wp-list-table widefat fixed striped" style="max-width:900px;">
-            <thead>
-                <tr>
-                    <th style="width:40px;">状态</th>
-                    <th style="width:280px;">优化项</th>
-                    <th>说明</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ( $checks as $c ) : ?>
-                <tr>
-                    <td><?php echo $c[0]; ?></td>
-                    <td><strong><?php echo esc_html( $c[1] ); ?></strong></td>
-                    <td style="font-size:13px;color:#555;"><?php echo $c[2]; ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+        <p style="margin:14px 0;">
+            <button type="button" class="button" id="gml-perf-all-on">✓ 全部启用</button>
+            <button type="button" class="button" id="gml-perf-all-off" style="margin-left:6px;">✗ 全部禁用</button>
+            <span style="margin-left:10px;color:#646970;font-size:13px;">点击按钮后，还需要点底部"保存优化设置"才会生效。</span>
+        </p>
 
-        <div style="margin-top:20px;padding:16px;background:#f0f6fc;border:1px solid #c3d9ed;border-radius:6px;max-width:900px;">
+        <form method="post" action="options.php" id="gml-perf-form">
+            <?php settings_fields( 'gml_seo_group' ); ?>
+            <input type="hidden" name="gml_seo[__perf_submitted]" value="1">
+            <?php
+            // Preserve non-perf fields so only Performance toggles are mutated.
+            foreach ( $preserve as $k ) {
+                echo '<input type="hidden" name="gml_seo[' . esc_attr( $k ) . ']" value="' . esc_attr( (string) ( $s[ $k ] ?? '' ) ) . '">';
+            }
+            ?>
+
+            <?php if ( class_exists( 'GML_SEO_Performance' ) ) :
+                foreach ( GML_SEO_Performance::$toggles as $group_id => $group ) : ?>
+                <h3 style="margin-top:28px;"><?php echo esc_html( $group['label'] ); ?></h3>
+                <table class="wp-list-table widefat fixed striped" style="max-width:980px;">
+                    <thead>
+                        <tr>
+                            <th style="width:70px;">启用</th>
+                            <th style="width:320px;">优化项</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ( $group['options'] as $key => $meta ) :
+                        list( $label, $default, $help ) = $meta;
+                        $current = array_key_exists( $key, $s ) ? (int) $s[ $key ] : (int) $default;
+                    ?>
+                        <tr>
+                            <td style="text-align:center;">
+                                <input type="checkbox"
+                                       class="gml-perf-toggle"
+                                       id="<?php echo esc_attr( $key ); ?>"
+                                       name="gml_seo[<?php echo esc_attr( $key ); ?>]"
+                                       value="1"
+                                       <?php checked( $current, 1 ); ?>>
+                            </td>
+                            <td><label for="<?php echo esc_attr( $key ); ?>"><strong><?php echo esc_html( $label ); ?></strong></label></td>
+                            <td style="font-size:13px;color:#555;"><?php echo esc_html( $help ); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endforeach;
+            endif; ?>
+
+            <?php submit_button( '保存优化设置' ); ?>
+        </form>
+
+        <div style="margin-top:20px;padding:16px;background:#f0f6fc;border:1px solid #c3d9ed;border-radius:6px;max-width:980px;">
             <h3 style="margin-top:0;">🛡️ 为什么不做更激进的优化？</h3>
             <p style="font-size:13px;color:#444;line-height:1.7;">
                 Google 官方 SEO 指南强调"以用户为本"。以下优化虽然能进一步提升 Lighthouse 分数，但有破坏网站的风险，我们选择不自动执行：
@@ -463,6 +565,18 @@ class GML_SEO_Admin {
                 如果你需要这些高级优化，建议使用专业性能插件（如 Perfmatters、WP Rocket）配合本插件使用。
             </p>
         </div>
+
+        <script>
+        ( function () {
+            function setAll( v ) {
+                document.querySelectorAll( '.gml-perf-toggle' ).forEach( function ( el ) { el.checked = v; } );
+            }
+            var on  = document.getElementById( 'gml-perf-all-on' );
+            var off = document.getElementById( 'gml-perf-all-off' );
+            if ( on )  on.addEventListener( 'click', function () { setAll( true ); } );
+            if ( off ) off.addEventListener( 'click', function () { setAll( false ); } );
+        } )();
+        </script>
         <?php
     }
 

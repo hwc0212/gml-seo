@@ -2,6 +2,27 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.1] - 2026-05-11
+
+### Added
+- 🎛 **Performance tab 每项独立开关** — 原本 20 项性能优化"always on"硬编码，现在改为表单 UI，分 6 组共 18 个复选框：
+  - **WordPress 瘦身**（8 项）：Emoji / Dashicons / oEmbed 脚本 / head link 清理 / 版本号隐藏 / Gutenberg 全局样式 / XML-RPC / self-pingback
+  - **JavaScript 优化**（1 项）：Defer 非关键 JS
+  - **字体优化**（1 项）：Google Fonts font-display:swap
+  - **图片与 iframe**（4 项）：Lazy loading / width-height 补全 / 首图 fetchpriority / iframe lazy
+  - **资源提示与预加载**（3 项）：Preconnect + DNS Prefetch / Preload 特色图片 / HTTP Link 头
+  - **HTML 与 REST API**（2 项）：HTML 压缩 / 禁用 oEmbed REST
+- 全部默认 = ON（升级无感，等价 v1.9.0 行为）
+- 页面顶部有"全部启用 / 全部禁用"快捷按钮
+- "全部禁用"后 output buffer 本身不会启动（零运行时成本）
+- **Settings 页新增退出观察期按钮** —— 迁移完成自动进入观察期时显示，带二次确认和 AJAX 刷新
+
+### Fixed
+- 🐛 **`sanitize()` 会把未在当前表单里的字段误清空**（v1.9.0 引入，影响 `gradual_mode` / `gradual_entered_at` / `conflict_notice_dismissed` / 未来的 `perf_*`）
+  - 根因：原来 `$o = []` 从空开始，只有几个字段被写入，其它字段在 `update_option` 时会丢
+  - 修复：sanitize 现在基于现有 option 做增量覆盖（`$o = $old;`），各 tab 通过 `__*_submitted` 隐藏字段声明自己在操作哪组字段
+  - 影响：v1.9.0 站点如果已经迁移完成并进入观察期，**保存任何 SEO 设置都会意外退出观察期**；升级到 1.9.1 后自动恢复正常
+
 ## [1.9.0] - 2026-05-08
 
 ### 🛡 SEO 插件安全迁移 + 防惩罚观察期

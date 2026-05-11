@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,11 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.9.1 =
+* Added: **Performance tab 现在是完整表单**，每项优化独立开关，共 18 项分成 6 组（WordPress 瘦身 / JS / 字体 / 图片与 iframe / 资源提示 / HTML 与 REST）。默认全部启用，主题或插件冲突时可按项关闭。
+* Added: Settings 页新增"退出观察期"按钮（迁移完成后自动进入观察期时才显示）。
+* Fixed: `sanitize()` 之前会把未在当前表单里出现的字段（如 `gradual_mode` / `conflict_notice_dismissed` / `perf_*`）误清空。改为基于现有 option 增量覆盖，各 tab 通过 `__*_submitted` 隐藏字段声明自己在操作哪组字段。
+
 = 1.9.0 =
 * Added: **SEO Plugin Migration** — safely take over sites that already run Yoast SEO / Rank Math / SEOPress / AIOSEO / The SEO Framework. Three layers of protection:
   * **Conflict Detector** (read-only) identifies competing SEO plugins and suppresses GML's frontend meta output so no duplicate `<title>`, description or canonical tags are emitted.
@@ -204,6 +209,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.9.1 =
+Performance tab 现在可以按项开关优化（默认全开，兼容 v1.9.0）。修复了一个 sanitize bug —— 原来保存设置时可能误清空 gradual_mode 等字段。
 
 = 1.9.0 =
 Safely migrate from Yoast / Rank Math / SEOPress / AIOSEO / The SEO Framework with a guided wizard. Conflict detection suppresses duplicate meta tags until migration is finished. An anti-penalty observation period engages automatically after migration to prevent Google Core Update surprises.
