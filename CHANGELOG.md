@@ -2,6 +2,28 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.2] - 2026-05-11
+
+### Fixed
+
+- 🐛 **HTML 输出压缩（`perf_minify_html`）默认改为关闭**
+  - 根因：`minify_html()` 把 `><` 之间的空白全部折叠，某些主题的导航 JS 用 `li > ul` 之间的空白节点来判断 DOM 结构，压缩后子菜单 hover 初始化失败
+  - 症状：未登录访客看不到子菜单（登录管理员不受影响，因为 performance 模块对管理员跳过）
+  - 修复：默认值改为 0；从 v1.9.0/v1.9.1 升级时自动重置为 0
+
+- 🐛 **Defer 非关键 JS（`perf_defer_js`）默认改为关闭**
+  - 根因：主题导航 JS 被 defer 到 DOMContentLoaded 之后，但某些内联脚本不等 defer 完成就尝试绑定事件，导致子菜单 / 语言切换器下拉失效
+  - 症状：同上，未登录访客看不到子菜单
+  - 修复：默认值改为 0；从 v1.9.0/v1.9.1 升级时自动重置为 0
+
+- 🐛 **图片变形（width/height 补全导致拉伸 / 压扁）**
+  - 根因：`perf_image_dimensions` 给图片写死 `width="X" height="Y"` 属性，但主题 CSS 没有 `img { height: auto }` 兜底，容器宽度被 flexbox/grid 压缩时高度仍按属性值保持，图片变形
+  - 修复：补全 width/height 时同时注入 `style="height:auto;max-width:100%"`（仅当图片没有 style 属性时），浏览器按 width 自动推算高度
+
+### Upgrade path
+
+从 v1.9.0 / v1.9.1 升级时，`boot()` 里的版本检测会在第一次 `init` 时把 `perf_defer_js` 和 `perf_minify_html` 强制重置为 0。如果你的主题兼容这两项，可以在 Performance 页手动重新开启。
+
 ## [1.9.1] - 2026-05-11
 
 ### Added

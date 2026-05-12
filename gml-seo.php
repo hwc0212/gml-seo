@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: All-in-one AI SEO automation + multilingual translation. AI weekly audits every page, re-optimizes stale content, pushes changes to Google / Bing in real time, and translates your site with destination-language SEO awareness (not literal translation). Built for 2025 AI Overviews and Helpful Content System.
- * Version: 1.9.1
+ * Version: 1.9.2
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.9.1' );
+define( 'GML_SEO_VER', '1.9.2' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -114,10 +114,29 @@ final class GML_SEO {
         // Auto-flush rewrite rules on version upgrade (must run on init, not plugins_loaded)
         $stored = get_option( 'gml_seo_version', '' );
         if ( $stored !== GML_SEO_VER ) {
-            add_action( 'init', function() {
+            $from_stored = $stored;
+            add_action( 'init', function() use ( $from_stored ) {
                 GML_SEO_Sitemap::add_rules();
                 flush_rewrite_rules();
-                update_option( 'gml_seo_version', GML_SEO_VER );
+                // v1.9.2: force-disable perf_defer_js and perf_minify_html
+                // on upgrade from v1.9.0 / v1.9.1. Both were ON by default
+                // but caused real-world breakage:
+                //   - perf_defer_js:    theme navigation JS deferred past
+                //     DOMContentLoaded, sub-menus stopped working for
+                //     logged-out visitors.
+                //   - perf_minify_html: whitespace removal broke sub-menu
+                //     DOM traversal in some themes.
+                // Users who want either feature can re-enable it in the
+                // Performance tab after verifying their theme is compatible.
+                // Skip on clean installs (no prior version stored).
+                if ( $from_stored !== '' && in_array( $from_stored, [ '1.9.0', '1.9.1' ], true ) ) {
+                    $opts = get_option( 'gml_seo', [] );
+                    if ( is_array( $opts ) ) {
+                        $opts['perf_defer_js']    = 0;
+                        $opts['perf_minify_html'] = 0;
+                        update_option( 'gml_seo', $opts );
+                    }
+                }                update_option( 'gml_seo_version', GML_SEO_VER );
             }, 99 );
         }
 

@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.1
+Stable tag: 1.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,12 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.9.2 =
+* Fixed: **HTML 输出压缩**（`perf_minify_html`）默认改为关闭。某些主题的导航 JS 依赖 HTML 里的空白字符来定位 DOM 节点，压缩后子菜单 / 下拉菜单对未登录访客失效。
+* Fixed: **Defer 非关键 JS**（`perf_defer_js`）默认改为关闭。主题导航 JS 被延后到 DOMContentLoaded 之后，子菜单对未登录访客失效。
+* Fixed: **图片变形**——自动补全 width/height 时同时注入 `style="height:auto;max-width:100%"`，防止主题 CSS 缺 `height:auto` 时图片被压扁或拉伸。
+* Upgrade: 从 v1.9.0 / v1.9.1 升级时，`perf_defer_js` 和 `perf_minify_html` 会被自动重置为关闭。如需使用，请在 Performance 页手动开启并测试。
+
 = 1.9.1 =
 * Added: **Performance tab 现在是完整表单**，每项优化独立开关，共 18 项分成 6 组（WordPress 瘦身 / JS / 字体 / 图片与 iframe / 资源提示 / HTML 与 REST）。默认全部启用，主题或插件冲突时可按项关闭。
 * Added: Settings 页新增"退出观察期"按钮（迁移完成后自动进入观察期时才显示）。
@@ -209,6 +215,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.9.2 =
+修复两个性能优化项导致的前台破坏：HTML 压缩和 Defer JS 默认改为关闭，升级时自动重置。图片变形问题修复。
 
 = 1.9.1 =
 Performance tab 现在可以按项开关优化（默认全开，兼容 v1.9.0）。修复了一个 sanitize bug —— 原来保存设置时可能误清空 gradual_mode 等字段。

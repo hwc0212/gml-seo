@@ -42,7 +42,7 @@ class GML_SEO_Performance {
         'js' => [
             'label'   => 'JavaScript 优化',
             'options' => [
-                'perf_defer_js' => [ 'Defer 非关键 JavaScript', 1, '自动跳过 jQuery / wc-cart-fragments 等关键脚本。' ],
+                'perf_defer_js' => [ 'Defer 非关键 JavaScript', 0, '默认关闭。某些主题的导航 / 下拉菜单 / 滑块 JS 会被延后到 DOMContentLoaded 之后才初始化，打开前请在前台测试导航是否正常。自动跳过 jQuery / wc-cart-fragments 等关键脚本。' ],
             ],
         ],
         'fonts' => [
@@ -55,7 +55,7 @@ class GML_SEO_Performance {
             'label'   => '图片与 iframe 优化',
             'options' => [
                 'perf_lazy_images'       => [ '图片 Lazy Loading（首屏前 2 张除外）', 1, '加 loading="lazy" + decoding="async"。' ],
-                'perf_image_dimensions'  => [ '自动补全图片 width / height', 1, '防止 CLS（累积布局偏移）。仅对本地 uploads 图片生效。' ],
+                'perf_image_dimensions'  => [ '自动补全图片 width / height', 1, '防止 CLS（累积布局偏移）。仅对本地 uploads 图片生效。v1.9.2 起同时注入 style="height:auto;max-width:100%" 兜底，防止主题 CSS 缺 height:auto 时图片被压扁 / 拉伸。' ],
                 'perf_lcp_fetchpriority' => [ '首图 fetchpriority="high"', 1, 'Google LCP 优化建议。' ],
                 'perf_lazy_iframes'      => [ 'iframe Lazy Loading', 1, 'YouTube、Google Maps 等 iframe 加 loading="lazy"。' ],
             ],
@@ -71,7 +71,7 @@ class GML_SEO_Performance {
         'html' => [
             'label'   => 'HTML 与 REST API',
             'options' => [
-                'perf_minify_html'         => [ 'HTML 输出压缩', 1, '移除多余空白和注释，智能跳过 pre/textarea/script/style/code。' ],
+                'perf_minify_html'         => [ 'HTML 输出压缩', 0, '默认关闭。某些主题的导航 JS 依赖 HTML 里的空白字符来定位 DOM 节点，压缩后子菜单 / 下拉菜单可能失效。打开前请在前台测试导航是否正常。' ],
                 'perf_disable_oembed_rest' => [ '禁用 oEmbed REST 端点', 1, '/wp-json/oembed/* 几乎无人使用但被机器人频繁爬取。' ],
             ],
         ],
@@ -320,6 +320,17 @@ class GML_SEO_Performance {
                     $dims = $this->get_image_dimensions( $atts );
                     if ( $dims ) {
                         $atts .= ' width="' . $dims[0] . '" height="' . $dims[1] . '"';
+                        // Ensure the image stays responsive. Writing explicit
+                        // width/height on the element is required to prevent
+                        // CLS, but without `height: auto` the browser keeps
+                        // the literal height when CSS/flexbox scales the
+                        // width down, which squashes or stretches images in
+                        // themes that don't already have `img { height:auto }`.
+                        // We only inject a style attribute when none exists
+                        // so any author-provided inline style is preserved.
+                        if ( stripos( $atts, 'style=' ) === false ) {
+                            $atts .= ' style="height:auto;max-width:100%"';
+                        }
                     }
                 }
 
