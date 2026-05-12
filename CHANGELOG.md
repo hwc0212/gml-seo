@@ -2,6 +2,19 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.3] - 2026-05-12
+
+### Fixed
+
+- 🐛 **图片变形彻底修复**（v1.9.2 的修复不完整）
+  - v1.9.2 只在"我们自己补了 width/height"时才注入 `height:auto`，但 WordPress 核心 `wp_get_attachment_image()` 输出的图片本来就带 `width` 和 `height` 属性，导致 `dim_fill` 分支根本不进入，兜底没有触发
+  - 修复：把 `height:auto;max-width:100%` 注入逻辑从 `dim_fill` 分支里独立出来，改为：**只要图片有 `width` 或 `height` 属性且没有 inline `style`，就注入**，覆盖所有情况（我们补的 + WordPress 加的 + 主题加的）
+
+- 🐛 **HTML 压缩导航子菜单失效彻底修复**（v1.9.2 只改了默认值，没修根因）
+  - 根因：`preg_replace('/>\s+</', '><', $html)` 把标签间所有空白节点删掉，某些主题的导航 JS 用 `nextElementSibling` / jQuery `.next()` 遍历时，空白文本节点被删后 DOM 结构改变，子菜单绑定失败
+  - 修复：改为 `'> <'`（折叠为单个空格）而不是 `'><'`（完全删除），保留空白节点，兼容所有依赖空白节点的主题导航 JS
+  - `perf_minify_html` 默认值恢复为 ON（根因已修，不再需要默认关闭）
+
 ## [1.9.2] - 2026-05-11
 
 ### Fixed

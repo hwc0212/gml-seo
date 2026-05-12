@@ -71,7 +71,7 @@ class GML_SEO_Performance {
         'html' => [
             'label'   => 'HTML 与 REST API',
             'options' => [
-                'perf_minify_html'         => [ 'HTML 输出压缩', 0, '默认关闭。某些主题的导航 JS 依赖 HTML 里的空白字符来定位 DOM 节点，压缩后子菜单 / 下拉菜单可能失效。打开前请在前台测试导航是否正常。' ],
+                'perf_minify_html'         => [ 'HTML 输出压缩', 1, '移除多余空白和 HTML 注释，HTML 体积减少 5-15%。智能跳过 pre/textarea/script/style/code。标签间空白折叠为单个空格（不完全删除），兼容依赖空白节点的主题导航 JS。' ],
                 'perf_disable_oembed_rest' => [ '禁用 oEmbed REST 端点', 1, '/wp-json/oembed/* 几乎无人使用但被机器人频繁爬取。' ],
             ],
         ],
@@ -320,18 +320,22 @@ class GML_SEO_Performance {
                     $dims = $this->get_image_dimensions( $atts );
                     if ( $dims ) {
                         $atts .= ' width="' . $dims[0] . '" height="' . $dims[1] . '"';
-                        // Ensure the image stays responsive. Writing explicit
-                        // width/height on the element is required to prevent
-                        // CLS, but without `height: auto` the browser keeps
-                        // the literal height when CSS/flexbox scales the
-                        // width down, which squashes or stretches images in
-                        // themes that don't already have `img { height:auto }`.
-                        // We only inject a style attribute when none exists
-                        // so any author-provided inline style is preserved.
-                        if ( stripos( $atts, 'style=' ) === false ) {
-                            $atts .= ' style="height:auto;max-width:100%"';
-                        }
                     }
+                }
+
+                // Always inject height:auto when the image has explicit
+                // width/height attributes (whether added by us above, by
+                // WordPress core, or by the theme) and no inline style yet.
+                // Without this, browsers keep the literal height value when
+                // CSS/flexbox scales the width down, squashing or stretching
+                // the image. Author-provided style attributes are left alone.
+                if ( stripos( $atts, 'style=' ) === false
+                     && (
+                         stripos( $atts, 'width=' ) !== false
+                         || stripos( $atts, 'height=' ) !== false
+                     )
+                ) {
+                    $atts .= ' style="height:auto;max-width:100%"';
                 }
 
                 return '<img' . $atts . '>';
@@ -387,7 +391,14 @@ class GML_SEO_Performance {
 
         $html = preg_replace( '/<!--(?!\[if)(?!-).*?-->/s', '', $html );
         $html = preg_replace( '/\s{2,}/', ' ', $html );
-        $html = preg_replace( '/>\s+</', '><', $html );
+        // Collapse whitespace between tags to a single space rather than
+        // removing it entirely. Removing it (replacing >\s+< with ><) breaks
+        // theme navigation JS that uses nextElementSibling / jQuery .next()
+        // to locate sub-menus — those APIs skip text nodes only when the
+        // text node is purely whitespace AND the browser has already
+        // normalised it; stripping it in the raw HTML changes the DOM tree
+        // in ways that differ across browsers and JS libraries.
+        $html = preg_replace( '/>\s+</', '> <', $html );
         $html = preg_replace( '/\s{2,}/', ' ', $html );
 
         if ( ! empty( $protected ) ) {

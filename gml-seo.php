@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: All-in-one AI SEO automation + multilingual translation. AI weekly audits every page, re-optimizes stale content, pushes changes to Google / Bing in real time, and translates your site with destination-language SEO awareness (not literal translation). Built for 2025 AI Overviews and Helpful Content System.
- * Version: 1.9.2
+ * Version: 1.9.3
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.9.2' );
+define( 'GML_SEO_VER', '1.9.3' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -129,7 +129,7 @@ final class GML_SEO {
                 // Users who want either feature can re-enable it in the
                 // Performance tab after verifying their theme is compatible.
                 // Skip on clean installs (no prior version stored).
-                if ( $from_stored !== '' && in_array( $from_stored, [ '1.9.0', '1.9.1' ], true ) ) {
+                if ( $from_stored !== '' && in_array( $from_stored, [ '1.9.0', '1.9.1', '1.9.2' ], true ) ) {
                     $opts = get_option( 'gml_seo', [] );
                     if ( is_array( $opts ) ) {
                         $opts['perf_defer_js']    = 0;

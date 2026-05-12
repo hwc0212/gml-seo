@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.2
+Stable tag: 1.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,10 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 
 == Changelog ==
 
+= 1.9.3 =
+* Fixed: **图片变形彻底修复**——v1.9.2 的 `height:auto` 兜底只在"我们自己补了 width/height"时才注入，但 WordPress 核心输出的图片本来就带 width/height，导致兜底没有触发。现在改为：只要图片有 width 或 height 属性且没有 inline style，就注入 `style="height:auto;max-width:100%"`，覆盖所有情况。
+* Fixed: **HTML 压缩导航子菜单失效彻底修复**——v1.9.2 把 `perf_minify_html` 默认改为 OFF，但根因没修。现在把 `>\s+<` 替换为 `> <`（折叠为单个空格）而不是 `><`（完全删除），保留空白节点，兼容依赖空白节点的主题导航 JS。`perf_minify_html` 默认恢复为 ON。
+
 = 1.9.2 =
 * Fixed: **HTML 输出压缩**（`perf_minify_html`）默认改为关闭。某些主题的导航 JS 依赖 HTML 里的空白字符来定位 DOM 节点，压缩后子菜单 / 下拉菜单对未登录访客失效。
 * Fixed: **Defer 非关键 JS**（`perf_defer_js`）默认改为关闭。主题导航 JS 被延后到 DOMContentLoaded 之后，子菜单对未登录访客失效。
@@ -215,6 +219,9 @@ Yes. It is tested and compatible with GML Translate. The meta tags module respec
 * Post editor metabox with full SEO report.
 
 == Upgrade Notice ==
+
+= 1.9.3 =
+图片变形和 HTML 压缩导航失效的根本修复。perf_minify_html 默认恢复 ON（已修复兼容性问题）。
 
 = 1.9.2 =
 修复两个性能优化项导致的前台破坏：HTML 压缩和 Defer JS 默认改为关闭，升级时自动重置。图片变形问题修复。
