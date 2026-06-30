@@ -124,8 +124,8 @@ final class GML_SEO_Gradual_Mode_Manager {
 	 * @param array $ai_result Structured AI result from the engine.
 	 * @return void
 	 */
-	public static function route_ai_result( int $post_id, array $ai_result ): void {
-		if ( ! self::is_active() ) {
+	public static function route_ai_result( int $post_id, array $ai_result, bool $force = false ): void {
+		if ( ! $force && ! self::is_active() ) {
 			return;
 		}
 

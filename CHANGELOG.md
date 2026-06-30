@@ -2,6 +2,22 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.4] - 2026-06-30
+
+### Added
+
+- Added Qwen and ChatGPT / OpenAI as first-class SEO AI engines.
+- Added OpenAI-compatible provider routing shared by DeepSeek, Qwen, and OpenAI.
+- Added encrypted storage for SEO API keys and Google service account JSON.
+- Added AI suggestion mode as the default application mode, so generated SEO fields can be reviewed before adoption.
+- Extended the bundled translation module to follow the unified SEO engine and support Qwen / OpenAI.
+
+### Changed
+
+- API key fields no longer echo stored secrets back into admin forms.
+- Translation settings now report the active unified AI engine more accurately.
+- Documentation now lists Gemini, DeepSeek, Qwen, and ChatGPT / OpenAI setup paths.
+
 ## [1.9.3] - 2026-05-12
 
 ### Fixed

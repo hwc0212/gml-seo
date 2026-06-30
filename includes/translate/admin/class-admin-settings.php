@@ -189,12 +189,22 @@ class GML_Admin_Settings {
             echo '<div class="notice notice-success"><p>' . __('Advanced settings saved!', 'gml-translate') . '</p></div>';
         }
 
-        $current_engine     = get_option('gml_translation_engine', 'gemini');
+        $current_engine     = get_option('gml_translation_engine', null);
+        if ( $current_engine === null && class_exists( 'GML_SEO' ) ) {
+            $current_engine = GML_SEO::opt( 'engine', 'gemini' );
+        }
+        $current_engine     = $current_engine ?: 'gemini';
         $api_key_set        = !empty(get_option('gml_api_key_encrypted'));
         $deepseek_key_set   = !empty(get_option('gml_deepseek_api_key_encrypted'));
         // Detect whether the unified GML SEO API key is configured
         $seo_key_set = class_exists( 'GML_SEO' ) && GML_SEO::has_ai_key();
         $seo_engine  = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'engine', 'gemini' ) : 'gemini';
+        $seo_engine_labels = [
+            'gemini'   => 'Google Gemini',
+            'deepseek' => 'DeepSeek',
+            'qwen'     => 'Qwen',
+            'openai'   => 'OpenAI',
+        ];
         $wp_locale          = get_locale();
         $default_lang       = substr($wp_locale, 0, 2);
         $source_lang        = get_option('gml_source_lang', $default_lang);
@@ -214,7 +224,7 @@ class GML_Admin_Settings {
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=gml-seo&tab=settings' ) ); ?>"><strong>GML AI SEO → Settings</strong></a>，
                     只需配置一次。
                     <?php if ( $seo_key_set ): ?>
-                        <span style="color:#00a32a;">✓ 当前已配置（引擎：<?php echo esc_html( $seo_engine === 'deepseek' ? 'DeepSeek' : 'Google Gemini' ); ?>）</span>
+                        <span style="color:#00a32a;">✓ 当前已配置（引擎：<?php echo esc_html( $seo_engine_labels[ $seo_engine ] ?? 'AI' ); ?>）</span>
                     <?php else: ?>
                         <span style="color:#d63638;">⚠️ 尚未配置，请先去 Settings 填写 API Key</span>
                     <?php endif; ?>
@@ -377,11 +387,11 @@ class GML_Admin_Settings {
         <h2><?php _e('System Status', 'gml-translate'); ?></h2>
         <table class="form-table">
             <tr><th><?php _e('Plugin Version:', 'gml-translate'); ?></th><td><?php echo esc_html(GML_VERSION); ?></td></tr>
-            <tr><th><?php _e('Translation Engine:', 'gml-translate'); ?></th><td><?php echo esc_html($current_engine === 'deepseek' ? 'DeepSeek' : 'Google Gemini'); ?></td></tr>
+            <tr><th><?php _e('Translation Engine:', 'gml-translate'); ?></th><td><?php echo esc_html($seo_engine_labels[ $current_engine ] ?? 'AI'); ?></td></tr>
             <tr>
                 <th><?php _e('API Status:', 'gml-translate'); ?></th>
                 <td><?php
-                    $engine_key_set = $current_engine === 'deepseek' ? $deepseek_key_set : $api_key_set;
+                    $engine_key_set = $seo_key_set || ( $current_engine === 'deepseek' ? $deepseek_key_set : $api_key_set );
                     if ($engine_key_set): ?>
                     <span style="color:green;">✓ <?php _e('Configured', 'gml-translate'); ?></span>
                 <?php else: ?>

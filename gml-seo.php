@@ -3,7 +3,7 @@
  * Plugin Name: GML AI SEO
  * Plugin URI: https://huwencai.com/gml-seo
  * Description: All-in-one AI SEO automation + multilingual translation. AI weekly audits every page, re-optimizes stale content, pushes changes to Google / Bing in real time, and translates your site with destination-language SEO awareness (not literal translation). Built for 2025 AI Overviews and Helpful Content System.
- * Version: 1.9.3
+ * Version: 1.9.4
  * Author: huwencai.com
  * Author URI: https://huwencai.com
  * License: GPL v2 or later
@@ -14,13 +14,20 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'GML_SEO_VER', '1.9.3' );
+define( 'GML_SEO_VER', '1.9.4' );
 define( 'GML_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GML_SEO_URL', plugin_dir_url( __FILE__ ) );
 
 final class GML_SEO {
 
     private static $inst = null;
+    private static $secret_options = [
+        'gemini_key',
+        'deepseek_key',
+        'qwen_key',
+        'openai_key',
+        'google_service_account',
+    ];
 
     public static function i() {
         if ( ! self::$inst ) self::$inst = new self();
@@ -78,6 +85,13 @@ final class GML_SEO {
                 'deepseek_key'    => '',
                 'deepseek_model'  => 'deepseek-chat',
                 'deepseek_base_url' => 'https://api.deepseek.com',
+                'qwen_key'        => '',
+                'qwen_model'      => 'qwen-plus',
+                'qwen_base_url'   => 'https://dashscope.aliyuncs.com/compatible-mode',
+                'openai_key'      => '',
+                'openai_model'    => 'gpt-4o-mini',
+                'openai_base_url' => 'https://api.openai.com',
+                'ai_apply_mode'   => 'suggest',
                 'ga_id'           => '',
                 'gtm_id'          => '',
                 'adsense_id'      => '',
@@ -231,6 +245,12 @@ final class GML_SEO {
         if ( $engine === 'deepseek' ) {
             return ! empty( self::opt( 'deepseek_key' ) );
         }
+        if ( $engine === 'qwen' ) {
+            return ! empty( self::opt( 'qwen_key' ) );
+        }
+        if ( $engine === 'openai' ) {
+            return ! empty( self::opt( 'openai_key' ) );
+        }
         return ! empty( self::opt( 'gemini_key' ) );
     }
 
@@ -238,7 +258,78 @@ final class GML_SEO {
     public static function opt( $key, $default = '' ) {
         static $cache = null;
         if ( $cache === null ) $cache = get_option( 'gml_seo', [] );
-        return $cache[ $key ] ?? $default;
+        $value = $cache[ $key ] ?? $default;
+        if ( self::is_secret_option( $key ) && is_string( $value ) && $value !== '' ) {
+            return self::decrypt_secret( $value );
+        }
+        return $value;
+    }
+
+    public static function is_secret_option( $key ) {
+        return in_array( $key, self::$secret_options, true );
+    }
+
+    public static function normalize_secret_option( $value, $old = '' ) {
+        $value = is_string( $value ) ? trim( $value ) : '';
+        if ( $value === '' ) {
+            return ( is_string( $old ) && $old !== '' && ! self::is_encrypted_secret( $old ) )
+                ? self::encrypt_secret( $old )
+                : $old;
+        }
+        if ( self::is_encrypted_secret( $value ) ) {
+            return $value;
+        }
+        return self::encrypt_secret( $value );
+    }
+
+    public static function is_encrypted_secret( $value ) {
+        return is_string( $value ) && strpos( $value, 'gmlenc:v1:' ) === 0;
+    }
+
+    public static function encrypt_secret( $value ) {
+        $value = (string) $value;
+        if ( $value === '' || self::is_encrypted_secret( $value ) ) {
+            return $value;
+        }
+
+        if ( function_exists( 'openssl_encrypt' ) ) {
+            $key    = hash( 'sha256', wp_salt( 'auth' ), true );
+            $iv_len = openssl_cipher_iv_length( 'AES-256-CBC' );
+            $iv     = function_exists( 'random_bytes' ) ? random_bytes( $iv_len ) : openssl_random_pseudo_bytes( $iv_len );
+            $enc    = openssl_encrypt( $value, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+            if ( $enc !== false ) {
+                return 'gmlenc:v1:' . base64_encode( $iv . $enc );
+            }
+        }
+
+        return $value;
+    }
+
+    public static function decrypt_secret( $value ) {
+        if ( ! self::is_encrypted_secret( $value ) ) {
+            return $value;
+        }
+
+        if ( ! function_exists( 'openssl_decrypt' ) ) {
+            return '';
+        }
+
+        $raw = base64_decode( substr( $value, strlen( 'gmlenc:v1:' ) ), true );
+        if ( $raw === false ) {
+            return '';
+        }
+
+        $iv_len = openssl_cipher_iv_length( 'AES-256-CBC' );
+        if ( strlen( $raw ) <= $iv_len ) {
+            return '';
+        }
+
+        $iv     = substr( $raw, 0, $iv_len );
+        $cipher = substr( $raw, $iv_len );
+        $key    = hash( 'sha256', wp_salt( 'auth' ), true );
+        $plain  = openssl_decrypt( $cipher, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+
+        return $plain === false ? '' : $plain;
     }
 
     /** Refresh option cache after save. */

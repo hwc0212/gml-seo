@@ -47,7 +47,7 @@ class GML_SEO_Metabox {
         // before the usual fields. The block only renders when the observation
         // period is active AND the post actually carries migration or suggestion data.
         if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
-             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
+             && ( GML_SEO_Gradual_Mode_Manager::is_active() || GML_SEO::opt( 'ai_apply_mode', 'suggest' ) !== 'apply' ) ) {
             $sbs = GML_SEO_Gradual_Mode_Manager::get_side_by_side( (int) $post->ID );
             if ( ! empty( $sbs['migrated_from'] ) || ! empty( $sbs['has_suggestion'] ) ) {
                 $this->render_side_by_side( (int) $post->ID, $sbs );

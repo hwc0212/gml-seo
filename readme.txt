@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.3
+Stable tag: 1.9.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -73,13 +73,15 @@ Automatic Core Web Vitals optimizations — no extra plugins needed:
 1. Upload the `gml-seo` folder to `/wp-content/plugins/`.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Go to **GML AI SEO → Settings**.
-4. Choose your AI engine (Gemini or DeepSeek) and enter the API key.
+4. Choose your AI engine (Gemini, DeepSeek, Qwen, or ChatGPT/OpenAI) and enter the API key.
 5. Done! New posts are optimized automatically on publish. Use **Bulk Optimize** for existing content.
 
 = Getting an API Key =
 
 * **Gemini**: Visit [Google AI Studio](https://aistudio.google.com/apikey) and create a free API key.
 * **DeepSeek**: Visit [DeepSeek Platform](https://platform.deepseek.com/api_keys) and create an API key.
+* **Qwen**: Visit [Alibaba Cloud Bailian / DashScope](https://bailian.console.aliyun.com/) and create an API key.
+* **ChatGPT / OpenAI**: Visit [OpenAI Platform](https://platform.openai.com/api-keys) and create an API key.
 
 == Frequently Asked Questions ==
 

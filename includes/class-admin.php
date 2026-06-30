@@ -34,12 +34,19 @@ class GML_SEO_Admin {
         }
         $o = $old;
 
-        $o['engine']            = in_array( $in['engine'] ?? '', [ 'gemini', 'deepseek' ] ) ? $in['engine'] : ( $old['engine'] ?? 'gemini' );
-        $o['gemini_key']        = isset( $in['gemini_key'] ) ? sanitize_text_field( $in['gemini_key'] ) : ( $old['gemini_key'] ?? '' );
+        $o['engine']            = in_array( $in['engine'] ?? '', [ 'gemini', 'deepseek', 'qwen', 'openai' ], true ) ? $in['engine'] : ( $old['engine'] ?? 'gemini' );
+        $o['gemini_key']        = isset( $in['gemini_key'] ) ? GML_SEO::normalize_secret_option( sanitize_text_field( $in['gemini_key'] ), $old['gemini_key'] ?? '' ) : ( $old['gemini_key'] ?? '' );
         $o['model']             = isset( $in['model'] ) ? sanitize_text_field( $in['model'] ) : ( $old['model'] ?? 'gemini-2.5-flash' );
-        $o['deepseek_key']      = isset( $in['deepseek_key'] ) ? sanitize_text_field( $in['deepseek_key'] ) : ( $old['deepseek_key'] ?? '' );
+        $o['deepseek_key']      = isset( $in['deepseek_key'] ) ? GML_SEO::normalize_secret_option( sanitize_text_field( $in['deepseek_key'] ), $old['deepseek_key'] ?? '' ) : ( $old['deepseek_key'] ?? '' );
         $o['deepseek_model']    = isset( $in['deepseek_model'] ) ? sanitize_text_field( $in['deepseek_model'] ) : ( $old['deepseek_model'] ?? 'deepseek-chat' );
         $o['deepseek_base_url'] = isset( $in['deepseek_base_url'] ) ? esc_url_raw( $in['deepseek_base_url'] ) : ( $old['deepseek_base_url'] ?? 'https://api.deepseek.com' );
+        $o['qwen_key']          = isset( $in['qwen_key'] ) ? GML_SEO::normalize_secret_option( sanitize_text_field( $in['qwen_key'] ), $old['qwen_key'] ?? '' ) : ( $old['qwen_key'] ?? '' );
+        $o['qwen_model']        = isset( $in['qwen_model'] ) ? sanitize_text_field( $in['qwen_model'] ) : ( $old['qwen_model'] ?? 'qwen-plus' );
+        $o['qwen_base_url']     = isset( $in['qwen_base_url'] ) ? esc_url_raw( $in['qwen_base_url'] ) : ( $old['qwen_base_url'] ?? 'https://dashscope.aliyuncs.com/compatible-mode' );
+        $o['openai_key']        = isset( $in['openai_key'] ) ? GML_SEO::normalize_secret_option( sanitize_text_field( $in['openai_key'] ), $old['openai_key'] ?? '' ) : ( $old['openai_key'] ?? '' );
+        $o['openai_model']      = isset( $in['openai_model'] ) ? sanitize_text_field( $in['openai_model'] ) : ( $old['openai_model'] ?? 'gpt-4o-mini' );
+        $o['openai_base_url']   = isset( $in['openai_base_url'] ) ? esc_url_raw( $in['openai_base_url'] ) : ( $old['openai_base_url'] ?? 'https://api.openai.com' );
+        $o['ai_apply_mode']     = in_array( $in['ai_apply_mode'] ?? '', [ 'suggest', 'apply' ], true ) ? $in['ai_apply_mode'] : ( $old['ai_apply_mode'] ?? 'suggest' );
         $o['ga_id']             = isset( $in['ga_id'] ) ? sanitize_text_field( $in['ga_id'] ) : ( $old['ga_id'] ?? '' );
         $o['gtm_id']            = isset( $in['gtm_id'] ) ? sanitize_text_field( $in['gtm_id'] ) : ( $old['gtm_id'] ?? '' );
         $o['adsense_id']        = isset( $in['adsense_id'] ) ? sanitize_text_field( $in['adsense_id'] ) : ( $old['adsense_id'] ?? '' );
@@ -53,10 +60,10 @@ class GML_SEO_Admin {
         // Automation tab checkbox + textarea (only when Automation submitted).
         if ( ! empty( $in['__automation_submitted'] ) ) {
             $o['indexnow_enabled']       = ! empty( $in['indexnow_enabled'] ) ? 1 : 0;
-            $o['google_service_account'] = trim( $in['google_service_account'] ?? '' );
+            $o['google_service_account'] = GML_SEO::normalize_secret_option( wp_unslash( $in['google_service_account'] ?? '' ), $old['google_service_account'] ?? '' );
         } else {
             $o['indexnow_enabled']       = isset( $in['indexnow_enabled'] ) ? ( ! empty( $in['indexnow_enabled'] ) ? 1 : 0 ) : ( $old['indexnow_enabled'] ?? 1 );
-            $o['google_service_account'] = isset( $in['google_service_account'] ) ? trim( $in['google_service_account'] ) : ( $old['google_service_account'] ?? '' );
+            $o['google_service_account'] = isset( $in['google_service_account'] ) ? GML_SEO::normalize_secret_option( wp_unslash( $in['google_service_account'] ), $old['google_service_account'] ?? '' ) : ( $old['google_service_account'] ?? '' );
         }
 
         // Performance tab toggles (only touch when Performance tab submitted).
@@ -117,16 +124,18 @@ class GML_SEO_Admin {
                         <select name="gml_seo[engine]" id="gml-seo-engine">
                             <option value="gemini" <?php selected( $engine, 'gemini' ); ?>>Google Gemini（海外推荐）</option>
                             <option value="deepseek" <?php selected( $engine, 'deepseek' ); ?>>DeepSeek（中国大陆推荐）</option>
+                            <option value="qwen" <?php selected( $engine, 'qwen' ); ?>>通义千问 Qwen（阿里云百炼）</option>
+                            <option value="openai" <?php selected( $engine, 'openai' ); ?>>ChatGPT / OpenAI</option>
                         </select>
-                        <p class="description">中国大陆无法访问 Google API，请选择 DeepSeek。</p>
+                        <p class="description">中国大陆环境可优先选择 DeepSeek 或通义千问；海外环境可选择 Gemini 或 ChatGPT。</p>
                     </td>
                 </tr>
 
                 <!-- Gemini fields -->
                 <tr class="gml-seo-engine-gemini" <?php echo $engine !== 'gemini' ? 'style="display:none;"' : ''; ?>>
                     <th>Gemini API Key</th>
-                    <td><input type="password" name="gml_seo[gemini_key]" value="<?php echo esc_attr( $s['gemini_key'] ?? '' ); ?>" class="regular-text" autocomplete="off">
-                    <p class="description">从 <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> 获取。</p></td>
+                    <td><input type="password" name="gml_seo[gemini_key]" value="" class="regular-text" autocomplete="off" placeholder="<?php echo ! empty( $s['gemini_key'] ) ? esc_attr__( '已配置，留空则不修改', 'gml-seo' ) : ''; ?>">
+                    <p class="description">从 <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> 获取。API Key 会加密保存。</p></td>
                 </tr>
                 <tr class="gml-seo-engine-gemini" <?php echo $engine !== 'gemini' ? 'style="display:none;"' : ''; ?>>
                     <th>Gemini Model</th>
@@ -140,8 +149,8 @@ class GML_SEO_Admin {
                 <!-- DeepSeek fields -->
                 <tr class="gml-seo-engine-deepseek" <?php echo $engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
                     <th>DeepSeek API Key</th>
-                    <td><input type="password" name="gml_seo[deepseek_key]" value="<?php echo esc_attr( $s['deepseek_key'] ?? '' ); ?>" class="regular-text" autocomplete="off">
-                    <p class="description">从 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 开放平台</a> 获取。</p></td>
+                    <td><input type="password" name="gml_seo[deepseek_key]" value="" class="regular-text" autocomplete="off" placeholder="<?php echo ! empty( $s['deepseek_key'] ) ? esc_attr__( '已配置，留空则不修改', 'gml-seo' ) : ''; ?>">
+                    <p class="description">从 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 开放平台</a> 获取。API Key 会加密保存。</p></td>
                 </tr>
                 <tr class="gml-seo-engine-deepseek" <?php echo $engine !== 'deepseek' ? 'style="display:none;"' : ''; ?>>
                     <th>DeepSeek Model</th>
@@ -157,7 +166,57 @@ class GML_SEO_Admin {
                     <p class="description">默认 https://api.deepseek.com，如使用代理可修改。</p></td>
                 </tr>
 
+                <!-- Qwen fields -->
+                <tr class="gml-seo-engine-qwen" <?php echo $engine !== 'qwen' ? 'style="display:none;"' : ''; ?>>
+                    <th>Qwen API Key</th>
+                    <td><input type="password" name="gml_seo[qwen_key]" value="" class="regular-text" autocomplete="off" placeholder="<?php echo ! empty( $s['qwen_key'] ) ? esc_attr__( '已配置，留空则不修改', 'gml-seo' ) : ''; ?>">
+                    <p class="description">从 <a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener">阿里云百炼 DashScope</a> 获取。API Key 会加密保存。</p></td>
+                </tr>
+                <tr class="gml-seo-engine-qwen" <?php echo $engine !== 'qwen' ? 'style="display:none;"' : ''; ?>>
+                    <th>Qwen Model</th>
+                    <td><select name="gml_seo[qwen_model]">
+                        <?php foreach ( [ 'qwen-plus' => 'Qwen Plus (推荐)', 'qwen-turbo' => 'Qwen Turbo (更快)', 'qwen-max' => 'Qwen Max (更高质量)' ] as $v => $l ) : ?>
+                            <option value="<?php echo esc_attr( $v ); ?>" <?php selected( $s['qwen_model'] ?? 'qwen-plus', $v ); ?>><?php echo esc_html( $l ); ?></option>
+                        <?php endforeach; ?>
+                    </select></td>
+                </tr>
+                <tr class="gml-seo-engine-qwen" <?php echo $engine !== 'qwen' ? 'style="display:none;"' : ''; ?>>
+                    <th>Qwen API Base URL</th>
+                    <td><input type="url" name="gml_seo[qwen_base_url]" value="<?php echo esc_attr( $s['qwen_base_url'] ?? 'https://dashscope.aliyuncs.com/compatible-mode' ); ?>" class="regular-text">
+                    <p class="description">默认使用 DashScope OpenAI 兼容模式；如使用代理可修改。</p></td>
+                </tr>
+
+                <!-- OpenAI fields -->
+                <tr class="gml-seo-engine-openai" <?php echo $engine !== 'openai' ? 'style="display:none;"' : ''; ?>>
+                    <th>OpenAI API Key</th>
+                    <td><input type="password" name="gml_seo[openai_key]" value="" class="regular-text" autocomplete="off" placeholder="<?php echo ! empty( $s['openai_key'] ) ? esc_attr__( '已配置，留空则不修改', 'gml-seo' ) : ''; ?>">
+                    <p class="description">从 <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a> 获取。API Key 会加密保存。</p></td>
+                </tr>
+                <tr class="gml-seo-engine-openai" <?php echo $engine !== 'openai' ? 'style="display:none;"' : ''; ?>>
+                    <th>OpenAI Model</th>
+                    <td><select name="gml_seo[openai_model]">
+                        <?php foreach ( [ 'gpt-4o-mini' => 'GPT-4o mini (推荐)', 'gpt-4.1-mini' => 'GPT-4.1 mini', 'gpt-4.1' => 'GPT-4.1 (更高质量)' ] as $v => $l ) : ?>
+                            <option value="<?php echo esc_attr( $v ); ?>" <?php selected( $s['openai_model'] ?? 'gpt-4o-mini', $v ); ?>><?php echo esc_html( $l ); ?></option>
+                        <?php endforeach; ?>
+                    </select></td>
+                </tr>
+                <tr class="gml-seo-engine-openai" <?php echo $engine !== 'openai' ? 'style="display:none;"' : ''; ?>>
+                    <th>OpenAI API Base URL</th>
+                    <td><input type="url" name="gml_seo[openai_base_url]" value="<?php echo esc_attr( $s['openai_base_url'] ?? 'https://api.openai.com' ); ?>" class="regular-text">
+                    <p class="description">默认 https://api.openai.com；如使用兼容代理可修改。</p></td>
+                </tr>
+
                 <!-- Common fields -->
+                <tr>
+                    <th>AI 应用方式</th>
+                    <td>
+                        <select name="gml_seo[ai_apply_mode]">
+                            <option value="suggest" <?php selected( $s['ai_apply_mode'] ?? 'suggest', 'suggest' ); ?>>建议模式（推荐，人工采纳）</option>
+                            <option value="apply" <?php selected( $s['ai_apply_mode'] ?? 'suggest', 'apply' ); ?>>自动应用（直接覆盖 SEO 字段）</option>
+                        </select>
+                        <p class="description">建议模式会把 AI 结果保存到 suggestion 通道，不直接覆盖标题、描述、OG 和关键词。</p>
+                    </td>
+                </tr>
                 <tr>
                     <th>Site Name</th>
                     <td><input type="text" name="gml_seo[site_name]" value="<?php echo esc_attr( $s['site_name'] ?? '' ); ?>" class="regular-text">
@@ -245,6 +304,8 @@ class GML_SEO_Admin {
             var v = this.value;
             document.querySelectorAll('.gml-seo-engine-gemini').forEach(function(el){ el.style.display = v === 'gemini' ? '' : 'none'; });
             document.querySelectorAll('.gml-seo-engine-deepseek').forEach(function(el){ el.style.display = v === 'deepseek' ? '' : 'none'; });
+            document.querySelectorAll('.gml-seo-engine-qwen').forEach(function(el){ el.style.display = v === 'qwen' ? '' : 'none'; });
+            document.querySelectorAll('.gml-seo-engine-openai').forEach(function(el){ el.style.display = v === 'openai' ? '' : 'none'; });
         });
         </script>
         <?php
@@ -356,7 +417,8 @@ class GML_SEO_Admin {
             <?php
             // Preserve all other settings
             $preserve = [ 'engine', 'gemini_key', 'model', 'deepseek_key', 'deepseek_model',
-                'deepseek_base_url', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
+                'deepseek_base_url', 'qwen_key', 'qwen_model', 'qwen_base_url',
+                'openai_key', 'openai_model', 'openai_base_url', 'ai_apply_mode', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
                 'footer_code', 'site_name', 'separator' ];
             foreach ( $preserve as $k ) {
                 echo '<input type="hidden" name="gml_seo[' . esc_attr( $k ) . ']" value="' . esc_attr( $s[ $k ] ?? '' ) . '">';
@@ -404,7 +466,7 @@ class GML_SEO_Admin {
                 <tr>
                     <th>Google Indexing API</th>
                     <td>
-                        <textarea name="gml_seo[google_service_account]" rows="6" class="large-text code" placeholder='{"type":"service_account","project_id":"...","private_key":"...",...}'><?php echo esc_textarea( $s['google_service_account'] ?? '' ); ?></textarea>
+                        <textarea name="gml_seo[google_service_account]" rows="6" class="large-text code" placeholder="<?php echo ! empty( $s['google_service_account'] ) ? esc_attr__( 'Configured; leave blank to keep unchanged', 'gml-seo' ) : esc_attr( '{"type":"service_account","project_id":"...","private_key":"...",...}' ); ?>"></textarea>
                         <p class="description">
                             粘贴 Google Cloud 服务账号 JSON。配置步骤：
                             <a href="https://developers.google.com/search/apis/indexing-api/v3/prereqs" target="_blank">创建服务账号</a> →
@@ -486,7 +548,8 @@ class GML_SEO_Admin {
         if ( ! is_array( $s ) ) $s = [];
 
         $preserve = [ 'engine', 'gemini_key', 'model', 'deepseek_key', 'deepseek_model',
-            'deepseek_base_url', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
+            'deepseek_base_url', 'qwen_key', 'qwen_model', 'qwen_base_url',
+            'openai_key', 'openai_model', 'openai_base_url', 'ai_apply_mode', 'ga_id', 'gtm_id', 'adsense_id', 'head_code', 'body_code',
             'footer_code', 'site_name', 'separator', 'audit_frequency',
             'indexnow_enabled', 'google_service_account' ];
         ?>
@@ -593,6 +656,13 @@ class GML_SEO_Admin {
             <input type="hidden" name="gml_seo[deepseek_key]" value="<?php echo esc_attr( $s['deepseek_key'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[deepseek_model]" value="<?php echo esc_attr( $s['deepseek_model'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[deepseek_base_url]" value="<?php echo esc_attr( $s['deepseek_base_url'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[qwen_key]" value="<?php echo esc_attr( $s['qwen_key'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[qwen_model]" value="<?php echo esc_attr( $s['qwen_model'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[qwen_base_url]" value="<?php echo esc_attr( $s['qwen_base_url'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[openai_key]" value="<?php echo esc_attr( $s['openai_key'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[openai_model]" value="<?php echo esc_attr( $s['openai_model'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[openai_base_url]" value="<?php echo esc_attr( $s['openai_base_url'] ?? '' ); ?>">
+            <input type="hidden" name="gml_seo[ai_apply_mode]" value="<?php echo esc_attr( $s['ai_apply_mode'] ?? 'suggest' ); ?>">
             <input type="hidden" name="gml_seo[ga_id]" value="<?php echo esc_attr( $s['ga_id'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[gtm_id]" value="<?php echo esc_attr( $s['gtm_id'] ?? '' ); ?>">
             <input type="hidden" name="gml_seo[adsense_id]" value="<?php echo esc_attr( $s['adsense_id'] ?? '' ); ?>">

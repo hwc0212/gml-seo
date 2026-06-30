@@ -386,9 +386,10 @@ PROMPT;
     private function apply_result( $post_id, $post, $result ) {
         // v1.9.0 anti-penalty observation period: route the AI result into
         // the suggestion channel and return without touching frontend meta.
+        $apply_mode = GML_SEO::opt( 'ai_apply_mode', 'suggest' );
         if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
-             && GML_SEO_Gradual_Mode_Manager::is_active() ) {
-            GML_SEO_Gradual_Mode_Manager::route_ai_result( (int) $post_id, (array) $result );
+             && ( GML_SEO_Gradual_Mode_Manager::is_active() || $apply_mode !== 'apply' ) ) {
+            GML_SEO_Gradual_Mode_Manager::route_ai_result( (int) $post_id, (array) $result, true );
             return;
         }
 

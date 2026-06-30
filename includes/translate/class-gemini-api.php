@@ -1,9 +1,9 @@
 <?php
 /**
- * GML Translation API — supports Gemini and DeepSeek engines
+ * GML Translation API — supports Gemini and OpenAI-compatible engines
  *
  * Gemini: POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
- * DeepSeek: POST https://api.deepseek.com/v1/chat/completions (OpenAI-compatible)
+ * DeepSeek/Qwen/OpenAI: POST {base}/chat/completions (OpenAI-compatible)
  *
  * @package GML_Translate
  */
@@ -21,10 +21,16 @@ class GML_Gemini_API {
     /** DeepSeek defaults */
     const DEEPSEEK_API_BASE  = 'https://api.deepseek.com/v1';
     const DEEPSEEK_MODEL     = 'deepseek-chat';
+    const QWEN_API_BASE      = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    const QWEN_MODEL         = 'qwen-plus';
+    const OPENAI_API_BASE    = 'https://api.openai.com/v1';
+    const OPENAI_MODEL       = 'gpt-4o-mini';
 
     /** Supported engines */
     const ENGINE_GEMINI   = 'gemini';
     const ENGINE_DEEPSEEK = 'deepseek';
+    const ENGINE_QWEN     = 'qwen';
+    const ENGINE_OPENAI   = 'openai';
 
     private $api_key;
     private $model;
@@ -43,7 +49,11 @@ class GML_Gemini_API {
         $this->protected_terms = get_option( 'gml_protected_terms', [ 'GML', 'WordPress', 'WooCommerce', 'Gemini' ] );
 
         if ( $this->engine === self::ENGINE_DEEPSEEK ) {
-            $this->model = get_option( 'gml_deepseek_model', self::DEEPSEEK_MODEL );
+            $this->model = get_option( 'gml_deepseek_model', class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'deepseek_model', self::DEEPSEEK_MODEL ) : self::DEEPSEEK_MODEL );
+        } elseif ( $this->engine === self::ENGINE_QWEN ) {
+            $this->model = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'qwen_model', self::QWEN_MODEL ) : self::QWEN_MODEL;
+        } elseif ( $this->engine === self::ENGINE_OPENAI ) {
+            $this->model = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'openai_model', self::OPENAI_MODEL ) : self::OPENAI_MODEL;
         } else {
             $this->model = get_option( 'gml_api_model', self::DEFAULT_MODEL );
         }
@@ -56,7 +66,7 @@ class GML_Gemini_API {
             ? 'gml_deepseek_api_key_encrypted'
             : 'gml_api_key_encrypted';
 
-        $stored = get_option( $option );
+        $stored = in_array( $this->engine, [ self::ENGINE_GEMINI, self::ENGINE_DEEPSEEK ], true ) ? get_option( $option ) : '';
         if ( $stored ) {
             return self::decrypt_key( $stored );
         }
@@ -66,9 +76,13 @@ class GML_Gemini_API {
         // share it. Translate's own encrypted option remains authoritative
         // when set (keeps legacy installations working unchanged).
         if ( class_exists( 'GML_SEO' ) ) {
-            $seo_key = $this->engine === self::ENGINE_DEEPSEEK
-                ? GML_SEO::opt( 'deepseek_key' )
-                : GML_SEO::opt( 'gemini_key' );
+            $map = [
+                self::ENGINE_GEMINI   => 'gemini_key',
+                self::ENGINE_DEEPSEEK => 'deepseek_key',
+                self::ENGINE_QWEN     => 'qwen_key',
+                self::ENGINE_OPENAI   => 'openai_key',
+            ];
+            $seo_key = isset( $map[ $this->engine ] ) ? GML_SEO::opt( $map[ $this->engine ] ) : '';
             if ( ! empty( $seo_key ) ) {
                 return $seo_key;
             }
@@ -294,13 +308,39 @@ class GML_Gemini_API {
              . "Do NOT add markdown, quotes, or explanations. Just the translated text.";
     }
 
-    // ── Core API call — dispatches to Gemini or DeepSeek ──────────────────────
+    // ── Core API call — dispatches to Gemini or OpenAI-compatible providers ───
 
     private function call_api( $system_instruction, $user_text, $retry = 0 ) {
-        if ( $this->engine === self::ENGINE_DEEPSEEK ) {
-            return $this->call_deepseek( $system_instruction, $user_text, $retry );
+        if ( $this->is_openai_compatible_engine() ) {
+            return $this->call_openai_compatible( $system_instruction, $user_text, $retry );
         }
         return $this->call_gemini( $system_instruction, $user_text, $retry );
+    }
+
+    private function is_openai_compatible_engine() {
+        return in_array( $this->engine, [ self::ENGINE_DEEPSEEK, self::ENGINE_QWEN, self::ENGINE_OPENAI ], true );
+    }
+
+    private function get_openai_compatible_base_url() {
+        if ( $this->engine === self::ENGINE_QWEN ) {
+            $base = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode' ) : 'https://dashscope.aliyuncs.com/compatible-mode';
+            return preg_match( '#/v1$#', rtrim( $base, '/' ) ) ? rtrim( $base, '/' ) : rtrim( $base, '/' ) . '/v1';
+        }
+        if ( $this->engine === self::ENGINE_OPENAI ) {
+            $base = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'openai_base_url', 'https://api.openai.com' ) : 'https://api.openai.com';
+            return preg_match( '#/v1$#', rtrim( $base, '/' ) ) ? rtrim( $base, '/' ) : rtrim( $base, '/' ) . '/v1';
+        }
+        return rtrim( get_option( 'gml_deepseek_api_base', self::DEEPSEEK_API_BASE ), '/' );
+    }
+
+    private function engine_label() {
+        $labels = [
+            self::ENGINE_GEMINI   => 'Gemini',
+            self::ENGINE_DEEPSEEK => 'DeepSeek',
+            self::ENGINE_QWEN     => 'Qwen',
+            self::ENGINE_OPENAI   => 'OpenAI',
+        ];
+        return $labels[ $this->engine ] ?? 'AI';
     }
 
     /**
@@ -355,10 +395,10 @@ class GML_Gemini_API {
     }
 
     /**
-     * DeepSeek chat/completions endpoint (OpenAI-compatible).
+     * OpenAI-compatible chat/completions endpoint.
      */
-    private function call_deepseek( $system_instruction, $user_text, $retry = 0 ) {
-        $base_url = rtrim( get_option( 'gml_deepseek_api_base', self::DEEPSEEK_API_BASE ), '/' );
+    private function call_openai_compatible( $system_instruction, $user_text, $retry = 0 ) {
+        $base_url = $this->get_openai_compatible_base_url();
         $url      = $base_url . '/chat/completions';
 
         $body = [
@@ -381,24 +421,24 @@ class GML_Gemini_API {
         ] );
 
         if ( is_wp_error( $response ) ) {
-            if ( $retry < 2 ) { sleep( 1 ); return $this->call_deepseek( $system_instruction, $user_text, $retry + 1 ); }
-            throw new Exception( 'DeepSeek API request failed: ' . $response->get_error_message() );
+            if ( $retry < 2 ) { sleep( 1 ); return $this->call_openai_compatible( $system_instruction, $user_text, $retry + 1 ); }
+            throw new Exception( $this->engine_label() . ' API request failed: ' . $response->get_error_message() );
         }
 
         $status = wp_remote_retrieve_response_code( $response );
         $raw    = wp_remote_retrieve_body( $response );
 
-        if ( $status === 429 && $retry < 3 ) { sleep( pow( 2, $retry + 1 ) ); return $this->call_deepseek( $system_instruction, $user_text, $retry + 1 ); }
-        if ( $status >= 500 && $retry < 2 )   { sleep( 2 ); return $this->call_deepseek( $system_instruction, $user_text, $retry + 1 ); }
+        if ( $status === 429 && $retry < 3 ) { sleep( pow( 2, $retry + 1 ) ); return $this->call_openai_compatible( $system_instruction, $user_text, $retry + 1 ); }
+        if ( $status >= 500 && $retry < 2 )   { sleep( 2 ); return $this->call_openai_compatible( $system_instruction, $user_text, $retry + 1 ); }
 
         if ( $status !== 200 ) {
-            error_log( "GML DeepSeek API error (HTTP {$status}): {$raw}" );
-            throw new Exception( "DeepSeek API returned HTTP {$status}" );
+            error_log( 'GML ' . $this->engine_label() . " API error (HTTP {$status}): {$raw}" );
+            throw new Exception( $this->engine_label() . " API returned HTTP {$status}" );
         }
 
         $data = json_decode( $raw, true );
         if ( json_last_error() !== JSON_ERROR_NONE ) {
-            throw new Exception( 'Invalid JSON from DeepSeek API' );
+            throw new Exception( 'Invalid JSON from ' . $this->engine_label() . ' API' );
         }
         return $data;
     }
@@ -406,7 +446,7 @@ class GML_Gemini_API {
     // ── Response parsing ──────────────────────────────────────────────────────
 
     private function extract_text( $response ) {
-        if ( $this->engine === self::ENGINE_DEEPSEEK ) {
+        if ( $this->is_openai_compatible_engine() ) {
             return $this->extract_text_openai( $response );
         }
         return $this->extract_text_gemini( $response );
@@ -430,10 +470,10 @@ class GML_Gemini_API {
         if ( $text === null ) {
             // Check for error
             if ( isset( $response['error']['message'] ) ) {
-                throw new Exception( 'DeepSeek API error: ' . $response['error']['message'] );
+                throw new Exception( $this->engine_label() . ' API error: ' . $response['error']['message'] );
             }
-            error_log( 'GML: Unexpected DeepSeek response: ' . wp_json_encode( $response ) );
-            throw new Exception( 'No text in DeepSeek API response' );
+            error_log( 'GML: Unexpected ' . $this->engine_label() . ' response: ' . wp_json_encode( $response ) );
+            throw new Exception( 'No text in ' . $this->engine_label() . ' API response' );
         }
         return $this->clean_output( $text );
     }
@@ -465,8 +505,8 @@ class GML_Gemini_API {
                 return [ 'valid' => false, 'message' => __( 'No API key provided', 'gml-translate' ) ];
             }
 
-            if ( $engine === self::ENGINE_DEEPSEEK ) {
-                return self::test_deepseek_key( $api_key );
+            if ( in_array( $engine, [ self::ENGINE_DEEPSEEK, self::ENGINE_QWEN, self::ENGINE_OPENAI ], true ) ) {
+                return self::test_openai_compatible_key( $api_key, $engine );
             }
             return self::test_gemini_key( $api_key );
 
@@ -509,10 +549,23 @@ class GML_Gemini_API {
         return [ 'valid' => false, 'message' => sprintf( __( 'API error (HTTP %d)', 'gml-translate' ), $status ) ];
     }
 
-    private static function test_deepseek_key( $api_key ) {
-        $base_url = rtrim( get_option( 'gml_deepseek_api_base', self::DEEPSEEK_API_BASE ), '/' );
+    private static function test_openai_compatible_key( $api_key, $engine = self::ENGINE_DEEPSEEK ) {
+        if ( $engine === self::ENGINE_QWEN ) {
+            $base = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode' ) : 'https://dashscope.aliyuncs.com/compatible-mode';
+            $base_url = preg_match( '#/v1$#', rtrim( $base, '/' ) ) ? rtrim( $base, '/' ) : rtrim( $base, '/' ) . '/v1';
+            $model = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'qwen_model', self::QWEN_MODEL ) : self::QWEN_MODEL;
+            $label = 'Qwen';
+        } elseif ( $engine === self::ENGINE_OPENAI ) {
+            $base = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'openai_base_url', 'https://api.openai.com' ) : 'https://api.openai.com';
+            $base_url = preg_match( '#/v1$#', rtrim( $base, '/' ) ) ? rtrim( $base, '/' ) : rtrim( $base, '/' ) . '/v1';
+            $model = class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'openai_model', self::OPENAI_MODEL ) : self::OPENAI_MODEL;
+            $label = 'OpenAI';
+        } else {
+            $base_url = rtrim( get_option( 'gml_deepseek_api_base', self::DEEPSEEK_API_BASE ), '/' );
+            $model    = get_option( 'gml_deepseek_model', class_exists( 'GML_SEO' ) ? GML_SEO::opt( 'deepseek_model', self::DEEPSEEK_MODEL ) : self::DEEPSEEK_MODEL );
+            $label    = 'DeepSeek';
+        }
         $url      = $base_url . '/chat/completions';
-        $model    = get_option( 'gml_deepseek_model', self::DEEPSEEK_MODEL );
 
         $body = [
             'model'    => $model,
@@ -540,12 +593,12 @@ class GML_Gemini_API {
         $data   = json_decode( wp_remote_retrieve_body( $resp ), true );
 
         if ( $status === 200 && isset( $data['choices'][0]['message']['content'] ) ) {
-            return [ 'valid' => true, 'message' => __( 'DeepSeek API key is valid!', 'gml-translate' ) ];
+            return [ 'valid' => true, 'message' => sprintf( __( '%s API key is valid!', 'gml-translate' ), $label ) ];
         }
         if ( isset( $data['error']['message'] ) ) {
-            return [ 'valid' => false, 'message' => 'DeepSeek: ' . $data['error']['message'] ];
+            return [ 'valid' => false, 'message' => $label . ': ' . $data['error']['message'] ];
         }
-        return [ 'valid' => false, 'message' => sprintf( __( 'DeepSeek API error (HTTP %d)', 'gml-translate' ), $status ) ];
+        return [ 'valid' => false, 'message' => sprintf( __( '%1$s API error (HTTP %2$d)', 'gml-translate' ), $label, $status ) ];
     }
 
     /**
@@ -555,6 +608,12 @@ class GML_Gemini_API {
         if ( $engine === null ) {
             $engine = get_option( 'gml_translation_engine', self::ENGINE_GEMINI );
         }
-        return $engine === self::ENGINE_DEEPSEEK ? 'DeepSeek' : 'Google Gemini';
+        $labels = [
+            self::ENGINE_GEMINI   => 'Google Gemini',
+            self::ENGINE_DEEPSEEK => 'DeepSeek',
+            self::ENGINE_QWEN     => 'Qwen',
+            self::ENGINE_OPENAI   => 'OpenAI',
+        ];
+        return $labels[ $engine ] ?? 'AI';
     }
 }
