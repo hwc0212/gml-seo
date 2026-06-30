@@ -13,6 +13,7 @@ class GML_SEO_Admin {
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
         add_action( 'admin_notices', [ $this, 'render_conflict_notice' ] );
         add_action( 'wp_ajax_gml_seo_dismiss_conflict_notice', [ $this, 'ajax_dismiss_conflict_notice' ] );
+        add_action( 'wp_ajax_gml_seo_sync_gsc', [ $this, 'ajax_sync_gsc' ] );
     }
 
     public function menu() {
@@ -21,6 +22,7 @@ class GML_SEO_Admin {
 
     public function register() {
         register_setting( 'gml_seo_group', 'gml_seo', [ 'sanitize_callback' => [ $this, 'sanitize' ] ] );
+        register_setting( 'gml_seo_strategy_group', 'gml_seo_strategy', [ 'sanitize_callback' => [ 'GML_SEO_Strategy', 'sanitize' ] ] );
     }
 
     public function sanitize( $in ) {
@@ -84,6 +86,7 @@ class GML_SEO_Admin {
             <h1>🤖 GML AI SEO</h1>
             <nav class="nav-tab-wrapper">
                 <a href="?page=gml-seo&tab=settings" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">⚙️ Settings</a>
+                <a href="?page=gml-seo&tab=strategy" class="nav-tab <?php echo $tab === 'strategy' ? 'nav-tab-active' : ''; ?>">🎯 Strategy</a>
                 <a href="?page=gml-seo&tab=automation" class="nav-tab <?php echo $tab === 'automation' ? 'nav-tab-active' : ''; ?>">🤖 Automation</a>
                 <a href="?page=gml-seo&tab=translate" class="nav-tab <?php echo $tab === 'translate' ? 'nav-tab-active' : ''; ?>">🌐 Translation</a>
                 <a href="?page=gml-seo&tab=performance" class="nav-tab <?php echo $tab === 'performance' ? 'nav-tab-active' : ''; ?>">⚡ Performance</a>
@@ -95,6 +98,7 @@ class GML_SEO_Admin {
             <div style="margin-top:20px;">
             <?php
             switch ( $tab ) {
+                case 'strategy':   $this->tab_strategy(); break;
                 case 'automation': $this->tab_automation( $s ); break;
                 case 'translate': $this->tab_translate(); break;
                 case 'performance': $this->tab_performance(); break;
@@ -309,6 +313,161 @@ class GML_SEO_Admin {
         });
         </script>
         <?php
+    }
+
+    private function tab_strategy() {
+        $s = GML_SEO_Strategy::get();
+        ?>
+        <form method="post" action="options.php">
+            <?php settings_fields( 'gml_seo_strategy_group' ); ?>
+            <h2>🎯 SEO Strategy</h2>
+            <p>这些设置会进入 AI 分析上下文，让优化结果更贴合业务目标、市场和转化路径。</p>
+            <table class="form-table">
+                <tr>
+                    <th>网站类型</th>
+                    <td><select name="gml_seo_strategy[site_type]">
+                        <?php foreach ( [
+                            'b2b' => 'B2B 外贸 / 询盘',
+                            'ecommerce' => 'WooCommerce / 电商',
+                            'blog' => '博客 / 内容站',
+                            'corporate' => '企业官网',
+                            'local_service' => '本地服务',
+                            'saas' => 'SaaS / 软件',
+                            'other' => '其它',
+                        ] as $v => $label ) : ?>
+                            <option value="<?php echo esc_attr( $v ); ?>" <?php selected( $s['site_type'], $v ); ?>><?php echo esc_html( $label ); ?></option>
+                        <?php endforeach; ?>
+                    </select></td>
+                </tr>
+                <?php
+                $fields = [
+                    'primary_markets'  => [ '主要市场', '例如：United States, Germany, Middle East' ],
+                    'target_languages' => [ '目标语言', '例如：English, German, Arabic' ],
+                    'core_offerings'   => [ '核心产品/服务', '写出最重要的产品线、服务或解决方案。' ],
+                    'customer_profile' => [ '目标客户画像', '例如：procurement managers, distributors, factory owners' ],
+                    'conversion_goals' => [ '转化目标', '例如：inquiry, WhatsApp, RFQ, purchase, newsletter signup' ],
+                    'brand_voice'      => [ '品牌语气', '例如：professional, technical, trustworthy, concise' ],
+                    'must_use_terms'   => [ '必须保留/优先使用词', '品牌名、产品型号、核心术语，每行或逗号分隔。' ],
+                    'avoid_terms'      => [ '禁用词/避免承诺', '例如：best, cheapest, guaranteed，或不想触碰的竞品词。' ],
+                    'competitors'      => [ '竞争对手域名', '每行一个域名，供 AI 做定位参考，不会自动抓取。' ],
+                    'analytics_notes'  => [ '分析数据备注', '可手动粘贴 GSC/GA 洞察，例如高曝光低 CTR、重点转化词。' ],
+                ];
+                foreach ( $fields as $key => $meta ) :
+                ?>
+                <tr>
+                    <th><?php echo esc_html( $meta[0] ); ?></th>
+                    <td>
+                        <textarea name="gml_seo_strategy[<?php echo esc_attr( $key ); ?>]" rows="3" class="large-text"><?php echo esc_textarea( $s[ $key ] ?? '' ); ?></textarea>
+                        <p class="description"><?php echo esc_html( $meta[1] ); ?></p>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                <tr>
+                    <th>Search Console Property URL</th>
+                    <td>
+                        <input type="url" name="gml_seo_strategy[gsc_property_url]" value="<?php echo esc_attr( $s['gsc_property_url'] ?? '' ); ?>" class="regular-text" placeholder="https://example.com/">
+                        <p class="description">为下一步 Search Console API 同步预留；当前会作为策略上下文提供给 AI。</p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button( '保存 SEO Strategy' ); ?>
+        </form>
+        <?php $this->render_gsc_panel(); ?>
+        <?php
+    }
+
+    private function render_gsc_panel() {
+        $insights = class_exists( 'GML_SEO_Search_Console' ) ? GML_SEO_Search_Console::get_insights() : [];
+        $nonce = wp_create_nonce( 'gml_seo_admin' );
+        ?>
+        <hr style="margin:28px 0;">
+        <h2>Search Console Insights</h2>
+        <p>使用 Automation 页里的 Google Service Account JSON 读取 Search Console 最近 28 天查询数据。服务账号邮箱需要先添加到 Search Console property。</p>
+        <p>
+            <button type="button" class="button button-primary" id="gml-sync-gsc">同步 Search Console 数据</button>
+            <span id="gml-sync-gsc-msg" style="margin-left:10px;"></span>
+        </p>
+        <?php if ( ! empty( $insights ) ) : ?>
+            <p><strong>上次同步：</strong><?php echo esc_html( $insights['synced_at'] ?? '' ); ?>　
+            <strong>范围：</strong><?php echo esc_html( ( $insights['start_date'] ?? '' ) . ' → ' . ( $insights['end_date'] ?? '' ) ); ?></p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:1100px;">
+                <?php
+                $sections = [
+                    'top_queries' => '高点击关键词',
+                    'low_ctr_queries' => '高曝光低 CTR',
+                    'striking_distance_queries' => '8-20 名机会词',
+                ];
+                foreach ( $sections as $key => $label ) :
+                    $rows = array_slice( $insights[ $key ] ?? [], 0, 8 );
+                ?>
+                    <div style="border:1px solid #ccd0d4;background:#fff;padding:12px;">
+                        <h3 style="margin-top:0;"><?php echo esc_html( $label ); ?></h3>
+                        <?php if ( empty( $rows ) ) : ?>
+                            <p style="color:#666;">暂无数据</p>
+                        <?php else : ?>
+                            <ol style="margin-left:18px;">
+                            <?php foreach ( $rows as $row ) : ?>
+                                <li>
+                                    <strong><?php echo esc_html( $row['query'] ?? '' ); ?></strong><br>
+                                    <span style="color:#666;font-size:12px;">
+                                        clicks <?php echo esc_html( (string) (int) ( $row['clicks'] ?? 0 ) ); ?> ·
+                                        impr <?php echo esc_html( (string) (int) ( $row['impressions'] ?? 0 ) ); ?> ·
+                                        CTR <?php echo esc_html( number_format_i18n( 100 * (float) ( $row['ctr'] ?? 0 ), 1 ) ); ?>% ·
+                                        pos <?php echo esc_html( number_format_i18n( (float) ( $row['position'] ?? 0 ), 1 ) ); ?>
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                            </ol>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        <script>
+        ( function () {
+            var btn = document.getElementById( 'gml-sync-gsc' );
+            var msg = document.getElementById( 'gml-sync-gsc-msg' );
+            if ( ! btn ) return;
+            btn.addEventListener( 'click', function () {
+                btn.disabled = true;
+                msg.textContent = '同步中...';
+                var fd = new FormData();
+                fd.append( 'action', 'gml_seo_sync_gsc' );
+                fd.append( 'nonce', '<?php echo esc_js( $nonce ); ?>' );
+                fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                    .then( function ( r ) { return r.json(); } )
+                    .then( function ( res ) {
+                        if ( res && res.success ) {
+                            msg.textContent = '同步完成，刷新中...';
+                            window.location.reload();
+                        } else {
+                            btn.disabled = false;
+                            msg.textContent = '同步失败：' + ( res && res.data && res.data.message ? res.data.message : '未知错误' );
+                        }
+                    } )
+                    .catch( function () {
+                        btn.disabled = false;
+                        msg.textContent = '同步失败，请重试';
+                    } );
+            } );
+        } )();
+        </script>
+        <?php
+    }
+
+    public function ajax_sync_gsc() {
+        check_ajax_referer( 'gml_seo_admin', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+        }
+        if ( ! class_exists( 'GML_SEO_Search_Console' ) ) {
+            wp_send_json_error( [ 'message' => 'Search Console module missing.' ], 500 );
+        }
+        $result = GML_SEO_Search_Console::sync();
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( [ 'message' => $result->get_error_message() ], 400 );
+        }
+        wp_send_json_success( $result );
     }
 
     // ── Translate Tab (bundled GML Translate module) ─────────────────

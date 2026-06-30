@@ -53,6 +53,7 @@ class GML_SEO_Metabox {
                 $this->render_side_by_side( (int) $post->ID, $sbs );
             }
         }
+        $this->render_safety_box( (int) $post->ID );
         ?>
         <?php if ( ! $has_key ) : ?>
             <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 AI API Key</a>（Gemini 或 DeepSeek），AI 才能自动优化 SEO。</p>
@@ -115,6 +116,56 @@ class GML_SEO_Metabox {
             <div id="gml-seo-report">
             <?php if ( $report ) $this->render_report( $post, $meta, $report ); ?>
             </div>
+            <?php $this->render_history_box( (int) $post->ID ); ?>
+        </div>
+        <?php
+    }
+
+    private function render_safety_box( $post_id ) {
+        $issues = get_post_meta( $post_id, '_gml_seo_safety_issues', true );
+        if ( empty( $issues ) || ! is_array( $issues ) ) {
+            return;
+        }
+        ?>
+        <div class="notice notice-warning inline" style="padding:12px 14px;margin:12px 0;">
+            <p style="margin-top:0;"><strong>AI 安全校验提示</strong>：本次 AI 结果存在需要人工确认的点，已优先进入建议/审核流程。</p>
+            <ul style="margin:0 0 0 18px;">
+                <?php foreach ( array_slice( $issues, 0, 6 ) as $issue ) : ?>
+                    <li>
+                        <strong><?php echo esc_html( strtoupper( $issue['severity'] ?? 'INFO' ) ); ?> / <?php echo esc_html( $issue['category'] ?? 'seo' ); ?>:</strong>
+                        <?php echo esc_html( $issue['message'] ?? '' ); ?>
+                        <?php if ( ! empty( $issue['fix'] ) ) : ?>
+                            <br><span style="color:#555;"><?php echo esc_html( $issue['fix'] ); ?></span>
+                        <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php
+    }
+
+    private function render_history_box( $post_id ) {
+        $history = get_post_meta( $post_id, '_gml_seo_history', true );
+        if ( empty( $history ) || ! is_array( $history ) ) {
+            return;
+        }
+        ?>
+        <div class="gml-seo-suggestions">
+            <h3>SEO 变更历史</h3>
+            <table class="widefat striped">
+                <thead><tr><th>时间</th><th>模式</th><th>引擎</th><th>安全校验</th><th>建议标题</th></tr></thead>
+                <tbody>
+                <?php foreach ( array_slice( $history, 0, 5 ) as $entry ) : ?>
+                    <tr>
+                        <td><?php echo esc_html( $entry['time'] ?? '' ); ?></td>
+                        <td><?php echo esc_html( $entry['mode'] ?? '' ); ?></td>
+                        <td><?php echo esc_html( $entry['engine'] ?? '' ); ?></td>
+                        <td><?php echo ! empty( $entry['safety_passed'] ) ? '✓' : '需审核'; ?></td>
+                        <td><?php echo esc_html( $entry['after']['title'] ?? '' ); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
         <?php
     }

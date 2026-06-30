@@ -63,7 +63,7 @@ class GML_SEO_AI_Engine {
         }
 
         // ── Auto-apply everything ────────────────────────────────────
-        $this->apply_result( $post_id, $post, $result );
+        $this->apply_result( $post_id, $post, $result, $data );
 
         // Store full report for metabox display
         update_post_meta( $post_id, '_gml_seo_report', $result );
@@ -155,6 +155,7 @@ class GML_SEO_AI_Engine {
             'locale'          => get_locale(),
             'existing_seo_title' => $existing_title,
             'existing_seo_desc'  => $existing_desc,
+            'site_strategy'      => class_exists( 'GML_SEO_Strategy' ) ? GML_SEO_Strategy::context_for_ai() : [],
         ];
     }
 
@@ -378,19 +379,36 @@ Return a valid JSON object (NO markdown fences):
 9. DO NOT suggest meta keywords tag optimization — Google explicitly ignores it
 10. Internal link suggestions must use descriptive anchor text (never "click here" — Google says anchor text should tell users what the linked page contains)
 11. FAQ questions must be what REAL users would ask (use "People Also Ask" style). Answers must be grounded in the page content — never invent facts. If the page is too thin, return an empty faq array rather than making things up.
+12. Use the `site_strategy` object as business context: prioritize the configured markets, languages, core offerings, customer profile, conversion goals, brand voice, required terms, and avoid terms.
+13. If `analytics_notes` are present, treat them as real performance signals. High impressions + low CTR means improve title/description; position 8-20 means improve topical depth and internal links; high traffic + low conversion means align intent and CTA.
 PROMPT;
     }
 
     // ── Auto-apply AI results ────────────────────────────────────────
 
-    private function apply_result( $post_id, $post, $result ) {
+    private function apply_result( $post_id, $post, $result, $page_data = [] ) {
+        $safety = class_exists( 'GML_SEO_AI_Safety' )
+            ? GML_SEO_AI_Safety::validate_result( (array) $result, (array) $page_data )
+            : [ 'passed' => true, 'issues' => [], 'blocking' => [] ];
+
+        if ( class_exists( 'GML_SEO_AI_Safety' ) ) {
+            GML_SEO_AI_Safety::save_safety( $post_id, $safety );
+        }
+
         // v1.9.0 anti-penalty observation period: route the AI result into
         // the suggestion channel and return without touching frontend meta.
         $apply_mode = GML_SEO::opt( 'ai_apply_mode', 'suggest' );
         if ( class_exists( 'GML_SEO_Gradual_Mode_Manager' )
-             && ( GML_SEO_Gradual_Mode_Manager::is_active() || $apply_mode !== 'apply' ) ) {
+             && ( GML_SEO_Gradual_Mode_Manager::is_active() || $apply_mode !== 'apply' || empty( $safety['passed'] ) ) ) {
             GML_SEO_Gradual_Mode_Manager::route_ai_result( (int) $post_id, (array) $result, true );
+            if ( class_exists( 'GML_SEO_AI_Safety' ) ) {
+                GML_SEO_AI_Safety::record_history( $post_id, (array) $result, $safety, empty( $safety['passed'] ) ? 'safety_suggest' : 'suggest' );
+            }
             return;
+        }
+
+        if ( class_exists( 'GML_SEO_AI_Safety' ) ) {
+            GML_SEO_AI_Safety::record_history( $post_id, (array) $result, $safety, 'apply' );
         }
 
         // Core SEO meta — always apply
