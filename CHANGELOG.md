@@ -2,6 +2,24 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Added site-level SEO Strategy settings for business goals, markets, audience, brand voice, required terms, avoid terms, competitors, Search Console property URL, GA4 property ID, and conversion events.
+- Added Search Console insights sync for top queries, low-CTR queries, striking-distance queries, and top pages.
+- Added GA4 Data API insights sync for high-traffic pages, conversion pages, low-conversion pages, and top events.
+- Added daily analytics auto-sync so configured Search Console and GA4 insights stay fresh for AI prompts.
+- Added an AI connection test button for the active provider and saved model.
+- Added goal-driven SEO scoring in AI output: business fit, conversion intent, analytics opportunity, risk, summary, and reasons.
+- Added risk-aware AI safety checks that force review for high-risk AI recommendations, low business-goal fit, and configured avoid-term matches.
+- Added SEO change history and AI safety issue display in the post editor.
+
+### Changed
+
+- AI prompts now use site strategy, Search Console insights, GA4 insights, and conversion goals when generating SEO metadata and recommendations.
+- High-risk or failed-safety AI outputs are routed to suggestion/review mode instead of being applied automatically.
+
 ## [1.9.4] - 2026-06-30
 
 ### Added
