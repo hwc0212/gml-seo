@@ -41,6 +41,37 @@ class GML_SEO_AI_Safety {
             }
         }
 
+        $strategy = $page_data['site_strategy'] ?? [];
+        if ( is_array( $strategy ) && ! empty( $strategy['avoid_terms'] ) ) {
+            $avoid_terms = preg_split( '/[\r\n,]+/', (string) $strategy['avoid_terms'] );
+            foreach ( $avoid_terms as $term ) {
+                $term = trim( $term );
+                if ( $term !== '' && stripos( $title . ' ' . $desc, $term ) !== false ) {
+                    $issues[] = self::issue( 'warning', 'brand_safety', 'AI output contains a configured avoid term: ' . $term, 'Remove the term or update the SEO strategy if this term is now allowed.' );
+                }
+            }
+        }
+
+        if ( ! empty( $result['goal_scores'] ) && is_array( $result['goal_scores'] ) ) {
+            $goal = $result['goal_scores'];
+            $risk = isset( $goal['risk'] ) ? (int) $goal['risk'] : null;
+            if ( $risk !== null && $risk >= 85 ) {
+                $issues[] = self::issue( 'critical', 'ai_risk', 'AI self-assessed this recommendation as high risk (' . $risk . '/100).', 'Keep it in suggestion mode and review the risk reasons before applying.' );
+            } elseif ( $risk !== null && $risk >= 70 ) {
+                $issues[] = self::issue( 'warning', 'ai_risk', 'AI self-assessed this recommendation as elevated risk (' . $risk . '/100).', 'Review the recommendation before applying automatically.' );
+            }
+
+            $business_fit = isset( $goal['business_fit'] ) ? (int) $goal['business_fit'] : null;
+            if ( $business_fit !== null && $business_fit < 40 ) {
+                $issues[] = self::issue( 'warning', 'business_fit', 'AI output has low business-goal fit (' . $business_fit . '/100).', 'Regenerate after improving site strategy or page context.' );
+            }
+
+            $conversion_intent = isset( $goal['conversion_intent'] ) ? (int) $goal['conversion_intent'] : null;
+            if ( $conversion_intent !== null && $conversion_intent < 35 ) {
+                $issues[] = self::issue( 'info', 'conversion', 'AI output has weak conversion-intent fit (' . $conversion_intent . '/100).', 'Consider adding clearer CTA, audience, or conversion goal context.' );
+            }
+        }
+
         if ( ! empty( $result['faq'] ) && is_array( $result['faq'] ) ) {
             foreach ( $result['faq'] as $idx => $item ) {
                 $answer = trim( wp_strip_all_tags( (string) ( $item['a'] ?? '' ) ) );
