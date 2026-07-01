@@ -2,10 +2,13 @@
 /**
  * Translate Module Bootstrap.
  *
- * Loads and initializes the bundled GML Translate subsystem. The translate
- * module lives in includes/translate/ and retains its original class names
- * (GML_*) and option keys (gml_*, wp_gml_index, wp_gml_queue) so data
- * migrated from the standalone GML Translate plugin works without changes.
+ * Loads and initializes the multilingual SEO subsystem. The translate module
+ * now lives under includes/modules/translate/ and its static assets live under
+ * assets/translate/ so it is structured as an internal GML AI SEO feature.
+ *
+ * The legacy GML_* class names and gml_* option/table keys are intentionally
+ * retained as a compatibility layer so data migrated from the standalone GML
+ * Translate plugin works without changes.
  *
  * The standalone GML Translate plugin (plugins/gml-translate) is detected
  * and disabled at activation to avoid duplicate hooks and class collisions.
@@ -18,7 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class GML_SEO_Translate_Bootstrap {
 
-    const SUBDIR = 'includes/translate/';
+    const MODULE_SUBDIR = 'includes/modules/translate/';
+    const ASSET_SUBDIR  = 'assets/translate/';
 
     /** @var bool Whether the translate module successfully loaded. */
     private static $loaded = false;
@@ -36,16 +40,16 @@ class GML_SEO_Translate_Bootstrap {
             return;
         }
 
-        // GML Translate expects these constants. We mirror them so the bundled
-        // code runs unchanged.
+        // Compatibility constants expected by the legacy GML_* classes.
+        // Directory points to module PHP; URL points to the integrated assets.
         if ( ! defined( 'GML_VERSION' ) ) {
             define( 'GML_VERSION', GML_SEO_VER . '-translate' );
         }
         if ( ! defined( 'GML_PLUGIN_DIR' ) ) {
-            define( 'GML_PLUGIN_DIR', GML_SEO_DIR . self::SUBDIR );
+            define( 'GML_PLUGIN_DIR', GML_SEO_DIR . self::MODULE_SUBDIR );
         }
         if ( ! defined( 'GML_PLUGIN_URL' ) ) {
-            define( 'GML_PLUGIN_URL', GML_SEO_URL . self::SUBDIR );
+            define( 'GML_PLUGIN_URL', GML_SEO_URL . self::ASSET_SUBDIR );
         }
         if ( ! defined( 'GML_PLUGIN_FILE' ) ) {
             define( 'GML_PLUGIN_FILE', GML_SEO_DIR . 'gml-seo.php' );
@@ -111,8 +115,8 @@ class GML_SEO_Translate_Bootstrap {
     }
 
     /**
-     * Spl autoloader that resolves GML_* classes to files inside
-     * includes/translate/ (and includes/translate/admin/).
+     * Spl autoloader that resolves legacy GML_* classes to files inside
+     * includes/modules/translate/ (and includes/modules/translate/admin/).
      */
     private static function register_autoloader() {
         spl_autoload_register( function( $class ) {
@@ -125,8 +129,8 @@ class GML_SEO_Translate_Bootstrap {
             $file = 'class-' . strtolower( str_replace( '_', '-', $name ) ) . '.php';
 
             $dirs = [
-                GML_SEO_DIR . self::SUBDIR,
-                GML_SEO_DIR . self::SUBDIR . 'admin/',
+                GML_SEO_DIR . self::MODULE_SUBDIR,
+                GML_SEO_DIR . self::MODULE_SUBDIR . 'admin/',
             ];
 
             foreach ( $dirs as $d ) {

@@ -2,6 +2,14 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.7] - 2026-07-01
+
+### Changed
+
+- Reorganized the multilingual feature as a native internal module: PHP moved from `includes/translate/` to `includes/modules/translate/`, and static assets moved to `assets/translate/`.
+- Updated the translate bootstrap compatibility layer so legacy `GML_*` classes still autoload from the new module path while assets load from the main plugin assets tree.
+- Preserved existing `gml_*` options, shortcodes, and translation database tables for seamless upgrades from previous bundled or standalone GML Translate installs.
+
 ## [1.9.6] - 2026-07-01
 
 ### Changed

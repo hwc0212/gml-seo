@@ -170,14 +170,14 @@ class GML_Language_Switcher {
     public function enqueue_assets() {
         wp_enqueue_style(
             'gml-language-switcher',
-            GML_PLUGIN_URL . 'assets/css/language-switcher.css',
+            GML_PLUGIN_URL . 'css/language-switcher.css',
             [],
             GML_VERSION
         );
 
         wp_enqueue_script(
             'gml-language-switcher',
-            GML_PLUGIN_URL . 'assets/js/language-switcher.js',
+            GML_PLUGIN_URL . 'js/language-switcher.js',
             [],
             GML_VERSION,
             true

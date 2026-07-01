@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.6
+Stable tag: 1.9.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -66,6 +66,15 @@ Performance note: GSC / GA4 sync does not call Google during normal front-end vi
 = AI Safety + Review Workflow =
 
 AI output is checked for overlong metadata, keyword stuffing, unsupported promotional claims, configured avoid terms, weak business fit, high risk, and schema/content mismatch. Unsafe recommendations are routed to suggestion/review mode instead of being applied automatically.
+
+= Integrated Multilingual Module =
+
+The multilingual feature is now structured as a native GML AI SEO module:
+
+* PHP module code lives under `includes/modules/translate/`
+* Translate assets live under `assets/translate/`
+* Legacy GML_* class names, options, shortcodes, and database tables remain compatible
+* Existing translation memory and settings are preserved during upgrades
 
 = Built-in Performance Optimization =
 

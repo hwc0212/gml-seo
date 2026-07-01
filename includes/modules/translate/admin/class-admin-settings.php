@@ -40,7 +40,7 @@ class GML_Admin_Settings {
         $on_legacy   = ( $hook === 'toplevel_page_gml-translate' );
         if ( ! $on_seo_page && ! $on_legacy ) return;
 
-        wp_enqueue_style('gml-admin', GML_PLUGIN_URL . 'assets/css/admin.css', [], GML_VERSION);
+        wp_enqueue_style('gml-admin', GML_PLUGIN_URL . 'css/admin.css', [], GML_VERSION);
 
         $tab = isset($_GET['sub']) ? sanitize_key($_GET['sub']) : 'settings';
 
@@ -50,7 +50,7 @@ class GML_Admin_Settings {
         }
 
         if ($tab === 'translations') {
-            wp_enqueue_script('gml-editor', GML_PLUGIN_URL . 'assets/js/translation-editor.js', ['jquery'], GML_VERSION, true);
+            wp_enqueue_script('gml-editor', GML_PLUGIN_URL . 'js/translation-editor.js', ['jquery'], GML_VERSION, true);
             wp_localize_script('gml-editor', 'gmlEditor', [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce'   => wp_create_nonce('gml_editor_nonce'),
