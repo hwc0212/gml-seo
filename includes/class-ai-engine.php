@@ -309,6 +309,17 @@ Return a valid JSON object (NO markdown fences):
   "secondary_keywords": ["<query2>", "<query3>", "<query4>"],
   "search_intent": "<informational|transactional|navigational|commercial>",
 
+  "goal_scores": {
+    "business_fit": <0-100 how well the SEO recommendation matches site_strategy core offerings, markets, customer profile, and brand voice>,
+    "conversion_intent": <0-100 how strongly the page and metadata support the configured conversion goals and conversion_events>,
+    "analytics_opportunity": <0-100 based on GSC/GA4 opportunity signals, or null if no analytics data is available>,
+    "risk": <0-100 where 0 is safest and 100 is highest SEO/compliance risk>,
+    "summary": "<one sentence explaining the overall goal fit>",
+    "reasons": [
+      "<specific reason tied to business goals, analytics data, search intent, or safety>"
+    ]
+  },
+
   "title": "<optimized title tag, ≤60 chars, clear, concise, accurately describes page>",
   "desc": "<meta description, 120-155 chars, compelling summary with value proposition>",
   "og_title": "<social-optimized title, more engaging, ≤70 chars>",
@@ -381,6 +392,7 @@ Return a valid JSON object (NO markdown fences):
 11. FAQ questions must be what REAL users would ask (use "People Also Ask" style). Answers must be grounded in the page content — never invent facts. If the page is too thin, return an empty faq array rather than making things up.
 12. Use the `site_strategy` object as business context: prioritize the configured markets, languages, core offerings, customer profile, conversion goals, brand voice, required terms, and avoid terms.
 13. If `analytics_notes` are present, treat them as real performance signals. High impressions + low CTR means improve title/description; position 8-20 means improve topical depth and internal links; high traffic + low conversion means align intent and CTA.
+14. `goal_scores` must be honest and grounded in `site_strategy`, `search_console_insights`, and `ga4_insights`. If analytics data is unavailable, set analytics_opportunity to null and say why in reasons. Risk must increase for unsupported claims, keyword stuffing, schema/content mismatch, title clickbait, or conversion promises not supported by page content.
 PROMPT;
     }
 
@@ -394,6 +406,7 @@ PROMPT;
         if ( class_exists( 'GML_SEO_AI_Safety' ) ) {
             GML_SEO_AI_Safety::save_safety( $post_id, $safety );
         }
+        $this->save_goal_scores( $post_id, (array) $result );
 
         // v1.9.0 anti-penalty observation period: route the AI result into
         // the suggestion channel and return without touching frontend meta.
@@ -535,6 +548,33 @@ PROMPT;
                 add_action( 'save_post', [ $this, 'on_save' ], 99, 2 );
             }
         }
+    }
+
+    private function save_goal_scores( $post_id, array $result ) {
+        if ( empty( $result['goal_scores'] ) || ! is_array( $result['goal_scores'] ) ) {
+            delete_post_meta( $post_id, '_gml_seo_goal_scores' );
+            return;
+        }
+
+        $raw = $result['goal_scores'];
+        $clean = [
+            'business_fit'          => isset( $raw['business_fit'] ) ? max( 0, min( 100, (int) $raw['business_fit'] ) ) : null,
+            'conversion_intent'     => isset( $raw['conversion_intent'] ) ? max( 0, min( 100, (int) $raw['conversion_intent'] ) ) : null,
+            'analytics_opportunity' => isset( $raw['analytics_opportunity'] ) && $raw['analytics_opportunity'] !== null ? max( 0, min( 100, (int) $raw['analytics_opportunity'] ) ) : null,
+            'risk'                  => isset( $raw['risk'] ) ? max( 0, min( 100, (int) $raw['risk'] ) ) : null,
+            'summary'               => isset( $raw['summary'] ) ? sanitize_text_field( $raw['summary'] ) : '',
+            'reasons'               => [],
+        ];
+
+        if ( ! empty( $raw['reasons'] ) && is_array( $raw['reasons'] ) ) {
+            foreach ( array_slice( $raw['reasons'], 0, 8 ) as $reason ) {
+                if ( is_scalar( $reason ) && trim( (string) $reason ) !== '' ) {
+                    $clean['reasons'][] = sanitize_text_field( (string) $reason );
+                }
+            }
+        }
+
+        update_post_meta( $post_id, '_gml_seo_goal_scores', $clean );
     }
 
     // ── AJAX: manual generate ────────────────────────────────────────

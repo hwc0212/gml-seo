@@ -54,6 +54,7 @@ class GML_SEO_Metabox {
             }
         }
         $this->render_safety_box( (int) $post->ID );
+        $this->render_goal_scores_box( (int) $post->ID, is_array( $report ) ? $report : [] );
         ?>
         <?php if ( ! $has_key ) : ?>
             <p class="gml-seo-notice-warn">⚠️ 请先 <a href="<?php echo admin_url( 'admin.php?page=gml-seo' ); ?>">配置 AI API Key</a>（Gemini 或 DeepSeek），AI 才能自动优化 SEO。</p>
@@ -166,6 +167,59 @@ class GML_SEO_Metabox {
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+        <?php
+    }
+
+    private function render_goal_scores_box( $post_id, array $report = [] ) {
+        $scores = get_post_meta( $post_id, '_gml_seo_goal_scores', true );
+        if ( empty( $scores ) && ! empty( $report['goal_scores'] ) && is_array( $report['goal_scores'] ) ) {
+            $scores = $report['goal_scores'];
+        }
+        if ( empty( $scores ) || ! is_array( $scores ) ) {
+            return;
+        }
+
+        $items = [
+            'business_fit'          => [ '业务匹配', false ],
+            'conversion_intent'     => [ '转化意图', false ],
+            'analytics_opportunity' => [ '数据机会', false ],
+            'risk'                  => [ '风险', true ],
+        ];
+        ?>
+        <div class="gml-seo-suggestions" style="border-left:4px solid #2271b1;">
+            <h3 style="margin-top:0;">目标驱动 SEO 评分</h3>
+            <?php if ( ! empty( $scores['summary'] ) ) : ?>
+                <p style="margin-top:0;"><?php echo esc_html( $scores['summary'] ); ?></p>
+            <?php endif; ?>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0;">
+                <?php foreach ( $items as $key => $meta ) :
+                    $value = array_key_exists( $key, $scores ) ? $scores[ $key ] : null;
+                    $is_risk = $meta[1];
+                    if ( $value === null || $value === '' ) {
+                        $label = 'N/A';
+                        $color = '#646970';
+                    } else {
+                        $num = max( 0, min( 100, (int) $value ) );
+                        $label = (string) $num;
+                        $good = $is_risk ? $num <= 30 : $num >= 75;
+                        $warn = $is_risk ? $num <= 60 : $num >= 50;
+                        $color = $good ? '#00a32a' : ( $warn ? '#dba617' : '#d63638' );
+                    }
+                ?>
+                    <div style="border:1px solid #dcdcde;background:#fff;padding:10px 12px;">
+                        <div style="font-size:12px;color:#646970;"><?php echo esc_html( $meta[0] ); ?></div>
+                        <div style="font-size:24px;font-weight:700;color:<?php echo esc_attr( $color ); ?>;"><?php echo esc_html( $label ); ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if ( ! empty( $scores['reasons'] ) && is_array( $scores['reasons'] ) ) : ?>
+                <ul style="margin-left:18px;">
+                    <?php foreach ( array_slice( $scores['reasons'], 0, 6 ) as $reason ) : ?>
+                        <li><?php echo esc_html( $reason ); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
         <?php
     }
