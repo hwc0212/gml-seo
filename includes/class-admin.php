@@ -14,6 +14,8 @@ class GML_SEO_Admin {
         add_action( 'admin_notices', [ $this, 'render_conflict_notice' ] );
         add_action( 'wp_ajax_gml_seo_dismiss_conflict_notice', [ $this, 'ajax_dismiss_conflict_notice' ] );
         add_action( 'wp_ajax_gml_seo_sync_gsc', [ $this, 'ajax_sync_gsc' ] );
+        add_action( 'wp_ajax_gml_seo_sync_ga4', [ $this, 'ajax_sync_ga4' ] );
+        add_action( 'wp_ajax_gml_seo_test_ai_engine', [ $this, 'ajax_test_ai_engine' ] );
     }
 
     public function menu() {
@@ -222,6 +224,14 @@ class GML_SEO_Admin {
                     </td>
                 </tr>
                 <tr>
+                    <th>AI 连接测试</th>
+                    <td>
+                        <button type="button" class="button" id="gml-test-ai-engine">测试当前 AI 引擎连接</button>
+                        <span id="gml-test-ai-engine-msg" style="margin-left:10px;"></span>
+                        <p class="description">测试会使用当前保存的 API Key 和模型发送一条极短请求。请先保存设置后再测试。</p>
+                    </td>
+                </tr>
+                <tr>
                     <th>Site Name</th>
                     <td><input type="text" name="gml_seo[site_name]" value="<?php echo esc_attr( $s['site_name'] ?? '' ); ?>" class="regular-text">
                     <p class="description">显示在 SEO 标题末尾，如 "文章标题 - 网站名"</p></td>
@@ -304,6 +314,33 @@ class GML_SEO_Admin {
         <?php endif; ?>
 
         <script>
+        ( function () {
+            var btn = document.getElementById( 'gml-test-ai-engine' );
+            var msg = document.getElementById( 'gml-test-ai-engine-msg' );
+            if ( ! btn ) return;
+            btn.addEventListener( 'click', function () {
+                btn.disabled = true;
+                msg.textContent = '测试中...';
+                var fd = new FormData();
+                fd.append( 'action', 'gml_seo_test_ai_engine' );
+                fd.append( 'nonce', '<?php echo esc_js( wp_create_nonce( 'gml_seo_admin' ) ); ?>' );
+                fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                    .then( function ( r ) { return r.json(); } )
+                    .then( function ( res ) {
+                        btn.disabled = false;
+                        if ( res && res.success ) {
+                            msg.textContent = '连接成功：' + ( res.data && res.data.message ? res.data.message : 'OK' );
+                        } else {
+                            msg.textContent = '连接失败：' + ( res && res.data && res.data.message ? res.data.message : '未知错误' );
+                        }
+                    } )
+                    .catch( function () {
+                        btn.disabled = false;
+                        msg.textContent = '连接失败，请重试';
+                    } );
+            } );
+        } )();
+
         document.getElementById('gml-seo-engine').addEventListener('change', function(){
             var v = this.value;
             document.querySelectorAll('.gml-seo-engine-gemini').forEach(function(el){ el.style.display = v === 'gemini' ? '' : 'none'; });
@@ -369,10 +406,25 @@ class GML_SEO_Admin {
                         <p class="description">为下一步 Search Console API 同步预留；当前会作为策略上下文提供给 AI。</p>
                     </td>
                 </tr>
+                <tr>
+                    <th>GA4 Property ID</th>
+                    <td>
+                        <input type="text" name="gml_seo_strategy[ga4_property_id]" value="<?php echo esc_attr( $s['ga4_property_id'] ?? '' ); ?>" class="regular-text" placeholder="123456789">
+                        <p class="description">GA4 Data API 使用数字 Property ID，不是 G- 开头的 Measurement ID。服务账号需要在 GA4 Property 中拥有 Viewer 权限。</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>GA4 转化事件</th>
+                    <td>
+                        <textarea name="gml_seo_strategy[conversion_events]" rows="2" class="large-text"><?php echo esc_textarea( $s['conversion_events'] ?? '' ); ?></textarea>
+                        <p class="description">填写你最重视的 GA4 转化事件名，例如 generate_lead、purchase、form_submit。AI 会优先围绕这些目标优化。</p>
+                    </td>
+                </tr>
             </table>
             <?php submit_button( '保存 SEO Strategy' ); ?>
         </form>
         <?php $this->render_gsc_panel(); ?>
+        <?php $this->render_ga4_panel(); ?>
         <?php
     }
 
@@ -470,8 +522,143 @@ class GML_SEO_Admin {
         wp_send_json_success( $result );
     }
 
-    // ── Translate Tab (bundled GML Translate module) ─────────────────
+    // GA4 insights panel and AJAX endpoints.
+    private function render_ga4_panel() {
+        $insights = class_exists( 'GML_SEO_GA4' ) ? GML_SEO_GA4::get_insights() : [];
+        $nonce = wp_create_nonce( 'gml_seo_admin' );
+        ?>
+        <hr style="margin:28px 0;">
+        <h2>GA4 Conversion Insights</h2>
+        <p>使用 Automation 页里的 Google Service Account JSON 读取 GA4 最近 28 天页面、事件和转化数据。服务账号需要先加入 GA4 Property。</p>
+        <p>
+            <button type="button" class="button button-primary" id="gml-sync-ga4">同步 GA4 数据</button>
+            <span id="gml-sync-ga4-msg" style="margin-left:10px;"></span>
+        </p>
+        <?php if ( ! empty( $insights ) ) : ?>
+            <p><strong>上次同步：</strong><?php echo esc_html( $insights['synced_at'] ?? '' ); ?>　
+            <strong>范围：</strong><?php echo esc_html( ( $insights['start_date'] ?? '' ) . ' → ' . ( $insights['end_date'] ?? '' ) ); ?></p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:1100px;">
+                <?php
+                $sections = [
+                    'top_pages'            => '高流量页面',
+                    'conversion_pages'     => '转化页面',
+                    'low_conversion_pages' => '有流量无转化',
+                ];
+                foreach ( $sections as $key => $label ) :
+                    $rows = array_slice( $insights[ $key ] ?? [], 0, 8 );
+                ?>
+                    <div style="border:1px solid #ccd0d4;background:#fff;padding:12px;">
+                        <h3 style="margin-top:0;"><?php echo esc_html( $label ); ?></h3>
+                        <?php if ( empty( $rows ) ) : ?>
+                            <p style="color:#666;">暂无数据</p>
+                        <?php else : ?>
+                            <ol style="margin-left:18px;">
+                            <?php foreach ( $rows as $row ) : ?>
+                                <li>
+                                    <strong><?php echo esc_html( $row['page'] ?? '' ); ?></strong><br>
+                                    <span style="color:#666;font-size:12px;">
+                                        sessions <?php echo esc_html( (string) (int) ( $row['sessions'] ?? 0 ) ); ?> ·
+                                        conv <?php echo esc_html( (string) (float) ( $row['conversions'] ?? 0 ) ); ?> ·
+                                        CVR <?php echo esc_html( number_format_i18n( 100 * (float) ( $row['conversion_rate'] ?? 0 ), 1 ) ); ?>% ·
+                                        engagement <?php echo esc_html( number_format_i18n( 100 * (float) ( $row['engagement_rate'] ?? 0 ), 1 ) ); ?>%
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                            </ol>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                <div style="border:1px solid #ccd0d4;background:#fff;padding:12px;">
+                    <h3 style="margin-top:0;">事件</h3>
+                    <?php $events = array_slice( $insights['top_events'] ?? [], 0, 8 ); ?>
+                    <?php if ( empty( $events ) ) : ?>
+                        <p style="color:#666;">暂无数据</p>
+                    <?php else : ?>
+                        <ol style="margin-left:18px;">
+                        <?php foreach ( $events as $row ) : ?>
+                            <li>
+                                <strong><?php echo esc_html( $row['event'] ?? '' ); ?></strong><br>
+                                <span style="color:#666;font-size:12px;">
+                                    count <?php echo esc_html( (string) (int) ( $row['event_count'] ?? 0 ) ); ?> ·
+                                    conv <?php echo esc_html( (string) (float) ( $row['conversions'] ?? 0 ) ); ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                        </ol>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+        <script>
+        ( function () {
+            var btn = document.getElementById( 'gml-sync-ga4' );
+            var msg = document.getElementById( 'gml-sync-ga4-msg' );
+            if ( ! btn ) return;
+            btn.addEventListener( 'click', function () {
+                btn.disabled = true;
+                msg.textContent = '同步中...';
+                var fd = new FormData();
+                fd.append( 'action', 'gml_seo_sync_ga4' );
+                fd.append( 'nonce', '<?php echo esc_js( $nonce ); ?>' );
+                fetch( window.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                    .then( function ( r ) { return r.json(); } )
+                    .then( function ( res ) {
+                        if ( res && res.success ) {
+                            msg.textContent = '同步完成，刷新中...';
+                            window.location.reload();
+                        } else {
+                            btn.disabled = false;
+                            msg.textContent = '同步失败：' + ( res && res.data && res.data.message ? res.data.message : '未知错误' );
+                        }
+                    } )
+                    .catch( function () {
+                        btn.disabled = false;
+                        msg.textContent = '同步失败，请重试';
+                    } );
+            } );
+        } )();
+        </script>
+        <?php
+    }
 
+    public function ajax_sync_ga4() {
+        check_ajax_referer( 'gml_seo_admin', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+        }
+        if ( ! class_exists( 'GML_SEO_GA4' ) ) {
+            wp_send_json_error( [ 'message' => 'GA4 module missing.' ], 500 );
+        }
+        $result = GML_SEO_GA4::sync();
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( [ 'message' => $result->get_error_message() ], 400 );
+        }
+        wp_send_json_success( $result );
+    }
+
+    public function ajax_test_ai_engine() {
+        check_ajax_referer( 'gml_seo_admin', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+        }
+        if ( ! class_exists( 'GML_SEO_AI_Client' ) ) {
+            wp_send_json_error( [ 'message' => 'AI client missing.' ], 500 );
+        }
+
+        $client = new GML_SEO_AI_Client();
+        $result = $client->call( 'Reply with OK only.', 'You are a connection test endpoint.', 8 );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( [ 'message' => $result->get_error_message() ], 400 );
+        }
+
+        $engine = GML_SEO::opt( 'engine', 'gemini' );
+        wp_send_json_success( [
+            'message' => strtoupper( $engine ) . ' OK',
+            'sample'  => mb_substr( trim( wp_strip_all_tags( (string) $result ) ), 0, 80 ),
+        ] );
+    }
+
+    // Translate tab (bundled GML Translate module).
     private function tab_translate() {
         // If standalone GML Translate is still active, the bundled module
         // isn't loaded (to prevent class redeclaration fatals). Show guidance.

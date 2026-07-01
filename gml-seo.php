@@ -39,6 +39,7 @@ final class GML_SEO {
         add_filter( 'wp_sitemaps_enabled', '__return_false' );
         require_once GML_SEO_DIR . 'includes/class-strategy.php';
         require_once GML_SEO_DIR . 'includes/class-search-console.php';
+        require_once GML_SEO_DIR . 'includes/class-ga4.php';
         require_once GML_SEO_DIR . 'includes/class-ai-safety.php';
         require_once GML_SEO_DIR . 'includes/class-gemini-api.php';
         require_once GML_SEO_DIR . 'includes/class-admin.php';

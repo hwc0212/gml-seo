@@ -20,6 +20,8 @@ class GML_SEO_Strategy {
             'avoid_terms'        => '',
             'competitors'        => '',
             'gsc_property_url'   => '',
+            'ga4_property_id'     => '',
+            'conversion_events'   => 'generate_lead, purchase, form_submit',
             'analytics_notes'    => '',
         ];
     }
@@ -40,11 +42,12 @@ class GML_SEO_Strategy {
             ? $in['site_type']
             : 'b2b';
 
-        foreach ( [ 'primary_markets', 'target_languages', 'core_offerings', 'customer_profile', 'conversion_goals', 'brand_voice', 'must_use_terms', 'avoid_terms', 'competitors', 'analytics_notes' ] as $key ) {
+        foreach ( [ 'primary_markets', 'target_languages', 'core_offerings', 'customer_profile', 'conversion_goals', 'brand_voice', 'must_use_terms', 'avoid_terms', 'competitors', 'conversion_events', 'analytics_notes' ] as $key ) {
             $out[ $key ] = isset( $in[ $key ] ) ? sanitize_textarea_field( $in[ $key ] ) : '';
         }
 
         $out['gsc_property_url'] = isset( $in['gsc_property_url'] ) ? esc_url_raw( $in['gsc_property_url'] ) : '';
+        $out['ga4_property_id']  = isset( $in['ga4_property_id'] ) ? preg_replace( '/[^0-9]/', '', sanitize_text_field( $in['ga4_property_id'] ) ) : '';
 
         return $out;
     }
@@ -72,6 +75,7 @@ class GML_SEO_Strategy {
             'must_use_terms'   => $s['must_use_terms'],
             'avoid_terms'      => $s['avoid_terms'],
             'competitors'      => $s['competitors'],
+            'conversion_events'=> $s['conversion_events'],
             'analytics_notes'  => $s['analytics_notes'],
         ];
 
@@ -79,6 +83,13 @@ class GML_SEO_Strategy {
             $gsc = GML_SEO_Search_Console::context_for_ai();
             if ( ! empty( $gsc ) ) {
                 $context['search_console_insights'] = $gsc;
+            }
+        }
+
+        if ( class_exists( 'GML_SEO_GA4' ) ) {
+            $ga4 = GML_SEO_GA4::context_for_ai();
+            if ( ! empty( $ga4 ) ) {
+                $context['ga4_insights'] = $ga4;
             }
         }
 
