@@ -15,6 +15,10 @@ class GML_SEO_Analytics_Sync {
     }
 
     public static function activate_cron() {
+        if ( ! apply_filters( 'gml_seo_analytics_auto_sync_enabled', true ) ) {
+            self::deactivate_cron();
+            return;
+        }
         if ( ! wp_next_scheduled( self::HOOK ) ) {
             wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::HOOK );
         }
@@ -30,6 +34,16 @@ class GML_SEO_Analytics_Sync {
     }
 
     public static function sync_all() {
+        if ( ! apply_filters( 'gml_seo_analytics_auto_sync_enabled', true ) ) {
+            $results = [
+                'synced_at' => current_time( 'mysql' ),
+                'gsc'       => [ 'skipped' => true, 'message' => 'Analytics auto-sync is disabled by filter.' ],
+                'ga4'       => [ 'skipped' => true, 'message' => 'Analytics auto-sync is disabled by filter.' ],
+            ];
+            update_option( self::STATUS_OPTION, $results, false );
+            return $results;
+        }
+
         $strategy = class_exists( 'GML_SEO_Strategy' ) ? GML_SEO_Strategy::get() : [];
         $results  = [
             'synced_at' => current_time( 'mysql' ),

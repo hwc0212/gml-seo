@@ -2,6 +2,13 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
+## [1.9.6] - 2026-07-01
+
+### Changed
+
+- Analytics auto-sync is scheduled on version upgrade as well as plugin activation, and can be disabled with `gml_seo_analytics_auto_sync_enabled` for performance-sensitive sites.
+- Documented that GSC / GA4 sync does not run during normal front-end visits, and that cached analytics insights are stored with `autoload=false`.
+
 ## [1.9.5] - 2026-07-01
 
 ### Added

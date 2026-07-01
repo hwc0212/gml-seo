@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.5
+Stable tag: 1.9.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,6 +60,8 @@ Using the Google Service Account JSON configured in Automation, the plugin can s
 * Daily automatic analytics refresh through WP-Cron
 
 These insights become prompt context so AI can prioritize CTR, ranking, topical depth, CTA alignment, and conversion intent.
+
+Performance note: GSC / GA4 sync does not call Google during normal front-end visits. Manual sync runs through admin AJAX, automatic sync runs daily through WP-Cron, and cached insights are stored with autoload disabled. Performance-sensitive sites can disable auto-sync with `gml_seo_analytics_auto_sync_enabled`.
 
 = AI Safety + Review Workflow =
 
