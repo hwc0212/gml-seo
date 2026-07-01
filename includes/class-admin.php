@@ -423,8 +423,42 @@ class GML_SEO_Admin {
             </table>
             <?php submit_button( '保存 SEO Strategy' ); ?>
         </form>
+        <?php $this->render_analytics_sync_status(); ?>
         <?php $this->render_gsc_panel(); ?>
         <?php $this->render_ga4_panel(); ?>
+        <?php
+    }
+
+    private function render_analytics_sync_status() {
+        if ( ! class_exists( 'GML_SEO_Analytics_Sync' ) ) {
+            return;
+        }
+        $status = GML_SEO_Analytics_Sync::get_status();
+        ?>
+        <hr style="margin:28px 0;">
+        <h2>Analytics Auto Sync</h2>
+        <p>插件会每天自动刷新已配置的 Search Console 和 GA4 数据，让 AI 使用更近的数据做 SEO 建议。</p>
+        <?php if ( empty( $status ) ) : ?>
+            <p style="color:#666;">暂无自动同步记录。保存配置后可等待定时任务，或使用下面的手动同步按钮。</p>
+        <?php else : ?>
+            <table class="widefat striped" style="max-width:760px;">
+                <tbody>
+                    <tr>
+                        <th style="width:180px;">上次自动同步</th>
+                        <td><?php echo esc_html( $status['synced_at'] ?? '' ); ?></td>
+                    </tr>
+                    <?php foreach ( [ 'gsc' => 'Search Console', 'ga4' => 'GA4' ] as $key => $label ) :
+                        $row = $status[ $key ] ?? [];
+                        $state = ! empty( $row['success'] ) ? '成功' : ( ! empty( $row['skipped'] ) ? '跳过' : '失败' );
+                    ?>
+                    <tr>
+                        <th><?php echo esc_html( $label ); ?></th>
+                        <td><strong><?php echo esc_html( $state ); ?></strong>：<?php echo esc_html( $row['message'] ?? '' ); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
         <?php
     }
 

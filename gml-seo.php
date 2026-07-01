@@ -40,6 +40,7 @@ final class GML_SEO {
         require_once GML_SEO_DIR . 'includes/class-strategy.php';
         require_once GML_SEO_DIR . 'includes/class-search-console.php';
         require_once GML_SEO_DIR . 'includes/class-ga4.php';
+        require_once GML_SEO_DIR . 'includes/class-analytics-sync.php';
         require_once GML_SEO_DIR . 'includes/class-ai-safety.php';
         require_once GML_SEO_DIR . 'includes/class-gemini-api.php';
         require_once GML_SEO_DIR . 'includes/class-admin.php';
@@ -69,6 +70,7 @@ final class GML_SEO {
 
         // Load the bundled translate module (registers autoloader + constants)
         GML_SEO_Translate_Bootstrap::load();
+        GML_SEO_Analytics_Sync::register();
 
         register_activation_hook( __FILE__, [ $this, 'activate' ] );
         register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
@@ -77,6 +79,7 @@ final class GML_SEO {
 
     public function deactivate() {
         GML_SEO_Health_Monitor::deactivate_cron();
+        GML_SEO_Analytics_Sync::deactivate_cron();
         GML_SEO_Translate_Bootstrap::deactivate();
     }
 
@@ -113,6 +116,8 @@ final class GML_SEO {
         update_option( 'gml_seo_version', GML_SEO_VER );
         // Schedule weekly health audit
         GML_SEO_Health_Monitor::activate_cron();
+        // Keep analytics insights fresh for AI prompts.
+        GML_SEO_Analytics_Sync::activate_cron();
         // Initialize translate module DB (safe on re-activation)
         GML_SEO_Translate_Bootstrap::install();
         // Auto-deactivate the standalone GML Translate if present
