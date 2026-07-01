@@ -4,7 +4,7 @@ Tags: seo, ai, sitemap, multilingual, translate
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.4
+Stable tag: 1.9.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,7 @@ Traditional SEO plugins give you manual knobs to turn. This plugin does the SEO 
 
 = AI SEO Master Engine =
 
-The AI engine (Google Gemini or DeepSeek) analyzes every published page and automatically generates:
+The AI engine (Google Gemini, DeepSeek, Qwen, or ChatGPT/OpenAI) analyzes every published page and automatically generates:
 
 * SEO title (≤ 60 chars, keyword-optimized, no stuffing)
 * Meta description (120–155 chars, compelling ad-copy style)
@@ -33,12 +33,37 @@ The AI engine (Google Gemini or DeepSeek) analyzes every published page and auto
 * Focus keywords (primary + 3–5 secondary)
 * Search intent classification
 * SEO score (0–100, A+ to F grade)
+* Goal-driven SEO scores: business fit, conversion intent, analytics opportunity, and risk
 * Content quality audit based on Google E-E-A-T criteria
 * Internal linking suggestions with descriptive anchor text
 * URL slug optimization suggestions
 * Image alt text auto-generation and filling
 * FAQ generation with FAQPage schema for Google rich results
 * Automatic internal linking across the entire site
+
+= SEO Strategy + Analytics Insights =
+
+Tell the AI what the site is actually trying to achieve:
+
+* Site type, markets, target languages, core offerings, customer profile
+* Conversion goals, GA4 conversion events, brand voice, required terms, avoid terms
+* Competitors, Search Console property URL, GA4 property ID, and analytics notes
+
+The AI uses this context when generating titles, descriptions, keywords, FAQ, schema, content suggestions, and risk scoring.
+
+= Search Console + GA4 Data =
+
+Using the Google Service Account JSON configured in Automation, the plugin can sync:
+
+* Search Console top queries, low-CTR queries, striking-distance queries, and top pages
+* GA4 high-traffic pages, conversion pages, low-conversion pages, and top events
+* Daily automatic analytics refresh through WP-Cron
+
+These insights become prompt context so AI can prioritize CTR, ranking, topical depth, CTA alignment, and conversion intent.
+
+= AI Safety + Review Workflow =
+
+AI output is checked for overlong metadata, keyword stuffing, unsupported promotional claims, configured avoid terms, weak business fit, high risk, and schema/content mismatch. Unsafe recommendations are routed to suggestion/review mode instead of being applied automatically.
 
 = Built-in Performance Optimization =
 
@@ -63,10 +88,12 @@ Automatic Core Web Vitals optimizations — no extra plugins needed:
 * Bulk optimization with progress tracking
 * Dashboard with optimization coverage stats
 
-= Dual AI Engine =
+= AI Providers =
 
 * Google Gemini — recommended for international sites
-* DeepSeek — recommended for sites in mainland China where Google API is inaccessible
+* DeepSeek — recommended for mainland China
+* Qwen / Alibaba Cloud Bailian — recommended for mainland China
+* ChatGPT / OpenAI — recommended when OpenAI access is available
 
 == Installation ==
 
@@ -74,7 +101,10 @@ Automatic Core Web Vitals optimizations — no extra plugins needed:
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Go to **GML AI SEO → Settings**.
 4. Choose your AI engine (Gemini, DeepSeek, Qwen, or ChatGPT/OpenAI) and enter the API key.
-5. Done! New posts are optimized automatically on publish. Use **Bulk Optimize** for existing content.
+5. Click **Test current AI engine connection** to verify the saved key and model.
+6. Go to **SEO Strategy** and fill in your site goals, markets, audience, conversion goals, brand voice, required terms, and avoid terms.
+7. Optional: configure Search Console / GA4 by pasting the Google Service Account JSON in Automation, then filling Search Console Property URL, GA4 numeric Property ID, and conversion events in SEO Strategy.
+8. Done! New posts are optimized automatically on publish. Use **Bulk Optimize** for existing content.
 
 = Getting an API Key =
 

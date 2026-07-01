@@ -2,7 +2,7 @@
 
 All notable changes to GML AI SEO will be documented in this file.
 
-## [Unreleased]
+## [1.9.5] - 2026-07-01
 
 ### Added
 
